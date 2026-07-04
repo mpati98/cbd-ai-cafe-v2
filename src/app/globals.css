@@ -1,0 +1,151 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Design tokens (Tailwind v4 CSS-first config)
+   Colors/shadows/animations below auto-generate utilities:
+   bg-latte-900, text-orange-400, shadow-neon-orange, animate-pulse-glow ...
+   ============================================================ */
+@theme {
+  /* fonts — mapped to the CSS variables next/font sets on <html> (see layout.tsx) */
+  --font-display: var(--ff-display);
+  --font-body: var(--ff-body);
+  --font-mono: var(--ff-mono);
+
+  /* latte (dark base) */
+  --color-latte-950: #140d07;
+  --color-latte-900: #1b130b;
+  --color-latte-800: #241a10;
+  --color-latte-700: #2e2216;
+  --color-latte-600: #3b2c1b;
+  --color-latte-400: #8a7458;
+  --color-latte-200: #d8c8ac;
+  --color-latte-100: #efe4d0;
+
+  /* navy (tech accent) */
+  --color-navy-900: #0f1936;
+  --color-navy-800: #182652;
+  --color-navy-700: #22336f;
+  --color-navy-500: #3b4fa0;
+  --color-navy-400: #5e72c4;
+
+  /* orange (neon / brand accent) */
+  --color-orange-700: #b8440a;
+  --color-orange-600: #d9540b;
+  --color-orange-500: #ee7211;
+  --color-orange-400: #ff9a44;
+  --color-orange-300: #ffb870;
+
+  /* brown (coffee accent) */
+  --color-brown-700: #432717;
+  --color-brown-600: #5a3423;
+  --color-brown-500: #7a4b33;
+  --color-brown-400: #a97a54;
+
+  /* neon glow shadows */
+  --shadow-neon-orange: 0 0 6px rgba(238, 114, 17, 0.55), 0 0 22px rgba(238, 114, 17, 0.35),
+    0 0 60px rgba(238, 114, 17, 0.15);
+  --shadow-neon-orange-sm: 0 0 4px rgba(238, 114, 17, 0.6), 0 0 14px rgba(238, 114, 17, 0.3);
+  --shadow-neon-navy: 0 0 6px rgba(94, 114, 196, 0.5), 0 0 24px rgba(94, 114, 196, 0.25);
+  --shadow-card: 0 20px 60px -25px rgba(0, 0, 0, 0.55);
+
+  /* ambient background washes */
+  --background-image-latte-radial: radial-gradient(
+      120% 90% at 80% 10%,
+      rgba(94, 114, 196, 0.16) 0%,
+      rgba(27, 19, 11, 0) 55%
+    ),
+    radial-gradient(100% 80% at 10% 100%, rgba(238, 114, 17, 0.1) 0%, rgba(27, 19, 11, 0) 55%);
+  --background-image-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+
+  /* neon pulse used on the best-seller badge */
+  --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* custom utility: text-shadow-neon (Tailwind v4 @utility API) */
+@utility text-shadow-neon {
+  text-shadow: 0 0 12px rgba(255, 154, 68, 0.65), 0 0 30px rgba(238, 114, 17, 0.35);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Mỗi section chính chiếm trọn 1 màn hình trên desktop, cuộn "snap" gọn gàng
+   giữa các phần. Trên mobile giữ cuộn tự nhiên vì nội dung không ép vừa 1 màn
+   hình nhỏ được mà không ảnh hưởng trải nghiệm đọc. */
+@media (min-width: 1024px) {
+  html {
+    scroll-snap-type: y proximity;
+  }
+  .snap-section {
+    scroll-snap-align: start;
+    /* Nav là fixed và đè lên phần trên của section khi snap tới — trừ hao
+       đúng bằng chiều cao nav để nội dung không bị nav che mất phần đầu. */
+    scroll-margin-top: 80px;
+  }
+}
+
+body {
+  background-color: #1b130b;
+  color: #efe4d0;
+}
+
+::selection {
+  background: #ee7211;
+  color: #1b130b;
+}
+
+:focus-visible {
+  outline: 2px solid #ee7211;
+  outline-offset: 3px;
+}
+
+/* eyebrow label with connector line */
+.eyebrow {
+  font-family: var(--ff-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.eyebrow::before {
+  content: "";
+  width: 22px;
+  height: 1px;
+  background: currentColor;
+  display: inline-block;
+}
+
+/* reveal-on-scroll (progressively enhanced via IntersectionObserver) */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.in-view {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .animate-pulse-glow {
+    animation: none !important;
+  }
+}

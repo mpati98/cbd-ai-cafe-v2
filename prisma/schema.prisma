@@ -1,0 +1,209 @@
+// Prisma schema — CBD AI Cafe
+// Database: Neon (Serverless Postgres)
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN // toàn quyền mọi tab, kể cả quản lý người dùng
+  STAFF // chỉ truy cập các tab được cấp trong `permissions`
+}
+
+/// Tài khoản đăng nhập trang /admin. ADMIN luôn có toàn quyền (bỏ qua
+/// `permissions`); STAFF chỉ thấy/thao tác được các tab liệt kê trong
+/// `permissions` — xem danh sách hợp lệ ở src/lib/permissions.ts.
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         UserRole  @default(STAFF)
+  permissions  String[]  @default([])
+  sessions     Session[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("users")
+}
+
+/// Phiên đăng nhập — token ngẫu nhiên (không phải JWT) lưu trong cookie
+/// httpOnly, tra cứu thẳng vào bảng này mỗi request. Đăng xuất = xoá dòng này,
+/// nên thu hồi phiên tức thì, không cần hạ tầng blacklist riêng.
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("sessions")
+}
+
+enum MediaPurpose {
+  HERO // ảnh nền/minh hoạ cho 1 slide trong hero carousel — chuẩn hoá 1920x1080
+  MENU // ảnh minh hoạ cho 1 món trong thực đơn — chuẩn hoá 900x900
+}
+
+/// Ảnh đã được xử lý (resize + convert sang WebP) — lưu thẳng trong Postgres (Neon)
+/// để không cần thêm dịch vụ lưu trữ file ngoài. Phục vụ qua GET /api/images/:id.
+model MediaAsset {
+  id        String       @id @default(cuid())
+  purpose   MediaPurpose
+  /// Ghi chú bắt buộc: ảnh này dùng cho phần nào (vd: "Hero slide 2 — Đà Lạt sương mù")
+  note      String
+  width     Int
+  height    Int
+  mimeType  String       @default("image/webp")
+  byteSize  Int
+  data      Bytes
+  createdAt DateTime     @default(now())
+
+  heroSlides HeroSlide[]
+  menuItems  MenuItem[]
+
+  @@map("media_assets")
+}
+
+/// One slide in the hero carousel ("story" section)
+model HeroSlide {
+  id          String   @id @default(cuid())
+  order       Int      @default(0)
+  eyebrow     String
+  title       String
+  body        String
+  imageId     String?
+  image       MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("hero_slides")
+}
+
+/// A drink on the menu
+model MenuItem {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  description  String
+  priceVnd     Int      // price in VND, e.g. 59000
+  isBestSeller Boolean  @default(false)
+  order        Int      @default(0)
+  imageId      String?
+  image        MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+  /// Tag dùng để order-chatbot gợi ý món theo câu trả lời của khách.
+  /// Giá trị hợp lệ: "dam" | "nhe" (đậm đà/nhẹ nhàng), "nong" | "lanh" (nóng/đá),
+  /// "trai-cay" | "truyen-thong" (trái cây/truyền thống) — xem src/lib/chatbot.ts
+  tags         String[] @default([])
+  orderItems   OrderItem[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("menu_items")
+}
+
+/// A milestone on the product/company roadmap
+model RoadmapItem {
+  id          String   @id @default(cuid())
+  period      String   // e.g. "Quý 3 / 2026"
+  title       String
+  description String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("roadmap_items")
+}
+
+enum BranchStatus {
+  PLANNING     // Lên kế hoạch thiết kế
+  SCOUTING     // Khảo sát vị trí
+  LEASING      // Đang tìm mặt bằng
+  FIT_OUT      // Đang hoàn thiện nội thất
+  OPEN         // Đã khai trương
+}
+
+/// Một đơn hàng đặt từ trang /order. 4 mốc xử lý (nhận đơn / pha chế / thanh
+/// toán / giao món) là 4 cờ độc lập (không nhất thiết tuần tự — ví dụ có thể
+/// thanh toán trước khi pha chế xong) — khi cả 4 đều true thì đơn được xem là
+/// "hoàn tất" (tính toán ở tầng ứng dụng, xem src/lib/orders.ts, không lưu
+/// thêm cột status để tránh lệch dữ liệu).
+model Order {
+  id            String      @id @default(cuid())
+  customerName  String?
+  customerNote  String?
+  /// Ghi chú nội bộ do nhân viên/admin thêm (khác với customerNote — ghi chú
+  /// của khách khi đặt món). Không hiển thị cho khách.
+  adminNote     String?
+  totalVnd      Int
+  isReceived    Boolean     @default(true)
+  isPreparing   Boolean     @default(false)
+  isPaid        Boolean     @default(false)
+  isDelivered   Boolean     @default(false)
+  /// Đơn đã huỷ — trạng thái riêng, ưu tiên hiển thị hơn 4 mốc xử lý ở trên
+  /// (1 đơn có thể đã pha chế/thanh toán một phần rồi mới huỷ).
+  isCancelled   Boolean     @default(false)
+  /// Bàn đặt đơn này (nếu quét QR tại bàn) — có thể null (khách tự đặt không
+  /// qua bàn cụ thể, vd. mang về). `tableLabel` là snapshot tên bàn tại thời
+  /// điểm đặt, để đơn cũ không đổi tên ngược khi bàn bị đổi tên/xoá sau đó.
+  table         Table?      @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  tableId       String?
+  tableLabel    String?
+  items         OrderItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("orders")
+}
+
+/// 1 bàn vật lý trong quán — mỗi bàn có 1 mã ngẫu nhiên (`code`) không đoán
+/// được, dùng làm URL trong QR dán tại bàn: /order/t/{code}. Khách quét QR sẽ
+/// vào đúng trang đặt món với ngữ cảnh "đang đặt cho bàn này", và đơn tạo ra
+/// tự gắn kèm bàn để nhân viên biết mang tới đâu.
+model Table {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  label     String
+  isActive  Boolean  @default(true)
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tables")
+}
+
+/// 1 dòng món trong 1 đơn hàng. Lưu lại tên + giá tại thời điểm đặt (snapshot)
+/// để đơn hàng cũ không bị đổi ngược khi sau này admin sửa/xoá món trong thực đơn.
+model OrderItem {
+  id               String    @id @default(cuid())
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId          String
+  menuItem         MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  menuItemId       String?
+  nameSnapshot     String
+  priceVndSnapshot Int
+  quantity         Int
+
+  @@map("order_items")
+}
+
+/// An upcoming (or open) branch location
+model Branch {
+  id          String       @id @default(cuid())
+  name        String
+  city        String
+  status      BranchStatus @default(PLANNING)
+  etaLabel    String       // e.g. "Quý 3 / 2026"
+  description String
+  order       Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("branches")
+}
