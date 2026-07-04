@@ -87,6 +87,7 @@ src/
       media/route.ts                                           # GET (list) / POST (upload+convert ảnh)
       media/[id]/route.ts                                        # DELETE ảnh
       images/[id]/route.ts                                         # GET — trả thẳng bytes ảnh WebP (công khai)
+      voice/route.ts                                                 # POST — ghi âm -> Groq Whisper -> chữ (công khai)
       orders/route.ts                                                # POST (công khai) / GET (cần quyền orders)
       orders/[id]/route.ts                                             # GET / PATCH (4 mốc) / DELETE
       stats/route.ts                                                     # GET — số đơn, doanh thu, top món
@@ -111,6 +112,9 @@ src/
     Roadmap.tsx                     # timeline hướng phát triển + chi nhánh sắp mở
     Footer.tsx                       # footer
     Reveal.tsx                        # wrapper hiệu ứng xuất hiện khi cuộn
+    VoiceMicButton.tsx                  # nút mic đặt món bằng giọng nói (dùng ở ChatPanel)
+  hooks/
+    useVoiceInput.ts                # ghi âm + tự dừng khi im lặng + gọi /api/voice
   lib/
     prisma.ts                    # Prisma Client + @prisma/adapter-neon, fallback an toàn
     auth.ts                        # server-only: hash mật khẩu (bcryptjs), tạo/tra cứu phiên đăng nhập
@@ -242,6 +246,82 @@ key, dễ kiểm soát):
 5. Khách cũng có thể gõ tự do bất kỳ lúc nào thay vì bấm nút — bot luôn cố
    hiểu là một lượt tìm món mới nếu không khớp lựa chọn đang chờ.
 
+**Đặt món bằng giọng nói:** nút 🎤 cạnh ô nhập liệu — bấm, nói câu muốn gửi
+(vd: "cho tôi trà đào" hoặc trả lời câu hỏi trắc nghiệm bằng giọng nói: "đậm
+đà", "đá lạnh"...). Bot nhận diện xong sẽ **điền vào ô nhập liệu để xem lại/sửa
+trước khi gửi** (cố tình không tự gửi thẳng — nhận diện dù chính xác cao vẫn
+có thể sai, luôn cho 1 bước xác nhận). Nút 🔈/🔊 cạnh tên "CBD Robot" bật/tắt
+việc bot **đọc to câu trả lời** (dùng
+[Web Speech Synthesis](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis)
+có sẵn trong trình duyệt — miễn phí, không cần đổi gì).
+
+**Kiến trúc nhận diện giọng nói:** ghi âm bằng `MediaRecorder` ngay trên
+trình duyệt, gửi file âm thanh lên server, server gọi
+[Groq](https://console.groq.com) (model `whisper-large-v3-turbo`) để chuyển
+thành chữ, trả kết quả về — thay cho Web Speech API có sẵn trong trình duyệt
+(SpeechRecognition) đã dùng ở bản trước. Lý do đổi: SpeechRecognition của
+trình duyệt cho tiếng Việt chỉ ổn trong môi trường yên tĩnh, không có cách
+nào "gợi ý" thêm từ vựng đặc thù (tên món), và Firefox không hỗ trợ luôn.
+Groq Whisper chính xác hơn hẳn với tiếng Việt trong môi trường ồn (quán cà
+phê), và hỗ trợ gửi kèm **`prompt`/gợi ý ngữ cảnh** — API route tự đính kèm
+toàn bộ tên món trong thực đơn vào gợi ý để Whisper nhận đúng tên riêng như
+"Cold Brew", "Bạc Xỉu" thay vì đoán chữ gần giống.
+
+**Tự động dừng ghi âm** theo 2 mốc — dừng ngay khi đạt mốc nào trước:
+- **Im lặng liên tục 3 giây** — theo dõi mức âm lượng qua Web Audio API
+  (`AnalyserNode`), khách nói xong là ghi tự dừng, không cần bấm dừng tay.
+- **Tối đa 12 giây** — phòng trường hợp môi trường quá ồn khiến không bao giờ
+  "im lặng đủ 3s" (nhạc quán, tiếng nói chuyện xung quanh vẫn có tiếng liên tục).
+
+Mốc "im lặng 3s" dùng **ngưỡng tự đo theo nhiễu nền thực tế** (500ms đầu của
+lượt ghi) thay vì 1 số cố định — mỗi máy/micro/phòng có mức nhiễu nền khác
+nhau, ngưỡng cố định dễ bị "nhiễu nền còn cao hơn ngưỡng" nên không bao giờ
+tính là im lặng được (đây là lý do phiên bản đầu không tự dừng được). Ngoài
+ra có thêm lớp lọc: 1 tiếng động phải kéo dài liên tục ≥150ms mới tính là
+"nói lại" (reset bộ đếm) — tránh tiếng động chớp nhoáng (cốc chạm bàn, tiếng
+gõ...) làm gián đoạn bộ đếm 1 cách oan uổng.
+
+**Muốn kiểm tra/chỉnh lại nếu vẫn chưa tự dừng đúng ý:** bật
+`debugSilence` ở `<VoiceMicButton />` (đang tạm bật trong
+`ChatPanel.tsx` kèm dòng `// TODO: bỏ dòng này...`) rồi mở Console
+trình duyệt (F12) khi ghi âm — sẽ thấy dòng `đã đo nhiễu nền ~X, ngưỡng im
+lặng = Y` ngay khi bắt đầu, và rải rác `rms=... threshold=...` trong lúc ghi.
+Nếu `rms` lúc không nói vẫn cao hơn `threshold` hiển thị, môi trường đang ồn
+hơn mức ngưỡng tự động cho phép — chỉnh `thresholdMultiplier` (mặc định 2.5)
+hoặc `minThreshold` (mặc định 0.01) khi gọi `watchForSilence` trong
+`src/hooks/useVoiceInput.ts`. Nhớ **bỏ `debugSilence`** sau khi xác nhận ổn,
+tránh log rác trong production.
+
+Cấu hình 2 mốc này ở `useVoiceInput({ silenceTimeoutMs, maxDurationMs })`
+trong `src/hooks/useVoiceInput.ts`.
+
+**Cần cấu hình:** thêm `GROQ_API_KEY` vào `.env` (lấy tại
+[console.groq.com/keys](https://console.groq.com/keys), có gói miễn phí) —
+xem `.env.example`. Chưa đặt key thì nút mic vẫn hiện (ghi âm được) nhưng
+bấm gửi sẽ báo lỗi thân thiện, không crash trang.
+
+**Giới hạn tốc độ (rate limit):** `/api/voice` tự chặn nếu 1 IP gửi quá 12
+request/phút — đơn giản (lưu trong bộ nhớ RAM, không cần Redis) nên chỉ tính
+theo từng instance server, không dùng chung giữa nhiều instance khi scale
+ngang — đủ cho quy mô 1 quán, nếu scale nhiều server cần chuyển sang rate
+limit tập trung (Redis/Upstash) để chính xác hơn.
+
+**Cấu trúc:**
+```
+src/hooks/useVoiceInput.ts             # ghi âm (MediaRecorder) + tự dừng khi im lặng + gọi /api/voice
+src/components/VoiceMicButton.tsx        # nút mic (idle/recording/transcribing/error), hiệu ứng sóng lan toả
+src/app/api/voice/route.ts                 # nhận file âm thanh, gọi Groq Whisper, trả chữ về
+src/lib/speech.ts                            # chỉ còn phần đọc to (TTS) — nhận diện đã chuyển sang Groq ở trên
+```
+
+**Bug đã sửa trong logic chatbot** (không liên quan chất lượng nhận diện —
+lộ ra khi thêm voice, xem `src/lib/chatbot.ts`):
+1. **Câu hỏi trắc nghiệm khớp được cả câu nói tự nhiên** ("đậm đà") thay vì
+   chỉ khớp đúng mã nội bộ nút bấm ("dam") — giọng nói không thể "gửi" mã nội
+   bộ như nút bấm, chỉ nói ra được câu tự nhiên theo đúng nhãn hiển thị.
+2. **Fallback dò tên món gần đúng** (Levenshtein theo từng từ, ưu tiên không
+   khớp nhầm hơn khớp rộng) — chịu được vài ký tự bị nhận sai/thiếu dấu.
+
 **Gợi ý theo tag:** mỗi món trong thực đơn có thể gắn tối đa 3 tag (1 tag mỗi
 trục: đậm/nhẹ, nóng/lạnh, trái cây/truyền thống) — sửa trong `/admin` → Thực
 đơn → field "Tag gợi ý (order-chatbot)". Bot chấm điểm món theo số tag khớp
@@ -271,6 +351,7 @@ src/lib/
   chatbot.ts                             # state machine + tìm kiếm + chấm điểm gợi ý (pure function)
   tags.ts                                  # định nghĩa 3 trục tag + câu hỏi tương ứng
   table-code.ts                              # sinh mã bàn ngẫu nhiên (server-only)
+  speech.ts                                    # chỉ còn đọc to (TTS) — nhận diện giọng nói xem src/hooks/useVoiceInput.ts
 ```
 
 ## Quản lý đơn hàng &amp; Thống kê (/admin → Đơn hàng &amp; Thống kê)

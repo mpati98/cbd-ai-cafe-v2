@@ -55,12 +55,91 @@ function normalize(s: string): string {
     .trim();
 }
 
+/**
+ * So khớp câu nói/gõ tự nhiên (vd "đậm đà", "cho tôi vị đậm") với nhãn 1 lựa
+ * chọn (vd "Đậm đà ☕") — bỏ emoji/dấu câu, không phân biệt dấu tiếng Việt,
+ * khớp nếu 1 trong 2 chuỗi chứa chuỗi còn lại. Cố tình khoan dung (không cần
+ * khớp tuyệt đối) vì giọng nói hiếm khi ra đúng 100% nhãn hiển thị.
+ */
+function matchesOptionLabel(input: string, label: string): boolean {
+  // Nhãn có thể chứa "/" để nối 2 cách gọi (vd "Đá / lạnh", "Cà phê / trà
+  // truyền thống") — tách theo "/" và so khớp với TỪNG phần riêng, thay vì
+  // xoá "/" rồi nối liền thành 1 câu dễ sai (mất nghĩa của phép "hoặc").
+  const alternatives = label
+    .replace(/[^\p{L}\p{N}\s/]/gu, "")
+    .split("/")
+    .map((s) => normalize(s.trim()))
+    .filter(Boolean);
+  const a = normalize(input);
+  if (!a) return false;
+  return alternatives.some((b) => a === b || a.includes(b) || b.includes(a));
+}
+
 export function searchMenuByText(items: ChatMenuItem[], query: string): ChatMenuItem[] {
   const q = normalize(query);
   if (!q) return [];
+
   const byName = items.filter((i) => normalize(i.name).includes(q) || q.includes(normalize(i.name)));
   if (byName.length) return byName;
-  return items.filter((i) => normalize(i.description).includes(q));
+
+  const byDescription = items.filter((i) => normalize(i.description).includes(q));
+  if (byDescription.length) return byDescription;
+
+  // Fallback mờ (fuzzy): nhận diện giọng nói hay lệch 1-2 ký tự (mất dấu,
+  // nhận nhầm âm gần giống). So khớp THEO TỪNG TỪ — mỗi từ trong câu hỏi
+  // phải khớp gần đúng (Levenshtein nhỏ) với ít nhất 1 từ trong tên món, để
+  // câu hỏi nhiều từ (vd "cot brew") vẫn khớp đúng thay vì so cả câu 1 lần.
+  const fuzzy = items.filter((item) => fuzzyWordsMatch(q, normalize(item.name)));
+  return fuzzy;
+}
+
+/**
+ * So khớp mờ theo từng từ — ưu tiên KHÔNG khớp sai hơn là khớp rộng (gợi ý
+ * nhầm món còn tệ hơn báo "không tìm thấy"). Với câu nhiều từ, phần lớn từ
+ * phải khớp CHÍNH XÁC (sau chuẩn hoá dấu) — chỉ cho phép 1 số ít từ "gần
+ * giống" (Levenshtein nhỏ), tránh trường hợp nhiều từ ngắn cùng tình cờ
+ * "gần giống" 1 món hoàn toàn không liên quan.
+ */
+function fuzzyWordsMatch(query: string, normalizedName: string): boolean {
+  const qWords = query.split(/\s+/).filter(Boolean);
+  const nameWords = normalizedName.split(/\s+/).filter(Boolean);
+  if (!qWords.length) return false;
+
+  const wordThreshold = (len: number) => (len <= 3 ? 1 : len <= 6 ? 2 : 3);
+
+  if (qWords.length === 1) {
+    const qw = qWords[0];
+    return nameWords.some((nw) => levenshtein(qw, nw) <= wordThreshold(qw.length));
+  }
+
+  let exactCount = 0;
+  for (const qw of qWords) {
+    if (nameWords.includes(qw)) {
+      exactCount++;
+      continue;
+    }
+    const fuzzyOk = nameWords.some((nw) => levenshtein(qw, nw) <= wordThreshold(qw.length));
+    if (!fuzzyOk) return false; // có từ không khớp gì cả -> chắc không phải món này
+  }
+  return exactCount >= Math.ceil(qWords.length / 2);
+}
+
+/** Khoảng cách Levenshtein (số ký tự cần sửa để biến chuỗi a thành b). */
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const dp: number[] = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = dp[j];
+      dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1]);
+      prev = tmp;
+    }
+  }
+  return dp[b.length];
 }
 
 export function recommendByAnswers(items: ChatMenuItem[], answers: Record<string, string>): ChatMenuItem | null {
@@ -247,11 +326,14 @@ export function handleUserInput(state: ChatState, rawValue: string, items: ChatM
     case "ask_q2": {
       const axisIndex = Number(next.step.slice(-1));
       const axis = TAG_AXES[axisIndex];
-      const chosen = axis.options.find((o) => o.value === value);
+      // Khớp cả khi bấm nút (value = mã nội bộ, vd "dam") LẪN khi gõ/nói tự
+      // nhiên theo đúng nhãn (vd "đậm đà") — quan trọng cho voice input, vì
+      // giọng nói không thể "gửi" mã nội bộ, chỉ nói ra được câu tự nhiên.
+      const chosen = axis.options.find((o) => o.value === value || matchesOptionLabel(value, o.label));
       if (!chosen) {
         return askAxis(nudge(next, "Bạn chọn 1 trong 2 gợi ý bên dưới giúp mình nhé 🙏"), axisIndex);
       }
-      const answers = { ...next.answers, [axis.key]: value };
+      const answers = { ...next.answers, [axis.key]: chosen.value };
       if (axisIndex + 1 < TAG_AXES.length) {
         return askAxis({ ...next, answers }, axisIndex + 1);
       }
