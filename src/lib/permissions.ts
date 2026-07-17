@@ -15,6 +15,7 @@ export const PERMISSIONS = [
   { key: "media", label: "Thư viện ảnh" },
   { key: "orders", label: "Đơn hàng & Thống kê" },
   { key: "tables", label: "Bàn & QR" },
+  { key: "knowledge", label: "Kiến thức" },
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number]["key"];

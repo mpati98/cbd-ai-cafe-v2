@@ -1,0 +1,10 @@
+import "dotenv/config";
+import { PrismaClient } from "./src/generated/prisma/index.js";
+import { PrismaNeon } from "@prisma/adapter-neon";
+const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
+const cats = await prisma.knowledgeCategory.findMany({ select: { id: true, name: true, slug: true } });
+console.log("CATEGORIES:", JSON.stringify(cats, null, 2));
+const topics = await prisma.knowledgeTopic.findMany({ select: { id: true, title: true, categoryId: true, category: { select: { name: true } }, isManual: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 20 });
+console.log("RECENT TOPICS:", JSON.stringify(topics, null, 2));
+await prisma.$disconnect();

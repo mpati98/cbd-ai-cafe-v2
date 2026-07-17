@@ -207,3 +207,56 @@ model Branch {
 
   @@map("branches")
 }
+
+/// Model local knowledge for Da Quy
+model KnowledgeCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique // "Cafe" | "Văn hóa" | "Địa điểm check-in" | "CBD Robotics" | ...
+  slug        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  topics KnowledgeTopic[]
+}
+
+model KnowledgeDocument {
+  id          String    @id @default(cuid())
+  fileName    String
+  fileSizeKb  Int
+  status      String    @default("processing") // processing | done | failed
+  errorMsg    String?
+  uploadedAt  DateTime  @default(now())
+  processedAt DateTime?
+  topics      KnowledgeTopic[]
+
+  @@index([status])
+}
+
+model KnowledgeTopic {
+  id         String   @id @default(cuid())
+
+  categoryId String
+  category   KnowledgeCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  documentId String?
+  document   KnowledgeDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  title      String
+  content    String   @db.Text
+  keywords   String[] @default([])
+
+  // --- phần chấm điểm 80/20 ---
+  askCount   Int      @default(0)   // tăng mỗi lần topic được dùng để trả lời khách
+  score      Float    @default(0)   // recompute định kỳ, xem lib/knowledge-scoring.ts
+  tier       String   @default("longtail") // "hot" | "longtail" - xếp lại mỗi lần recompute score
+
+  isManual   Boolean  @default(false) // true nếu admin tự thêm/sửa tay, không phải từ PDF
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([documentId])
+  @@index([tier])
+}

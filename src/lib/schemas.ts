@@ -72,7 +72,7 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Vui lòng nhập mật khẩu."),
 });
 
-const PERMISSION_KEY_SCHEMA = z.enum(["hero", "menu", "roadmap", "branches", "media", "orders", "tables"]);
+const PERMISSION_KEY_SCHEMA = z.enum(["hero", "menu", "roadmap", "branches", "media", "orders", "tables", "knowledge"]);
 
 export const userCreateSchema = z.object({
   email: z.string().email("Email không hợp lệ.").toLowerCase(),
@@ -87,6 +87,18 @@ export const userUpdateSchema = z.object({
   password: z.string().min(8, "Mật khẩu tối thiểu 8 ký tự.").optional(),
   role: z.enum(["ADMIN", "STAFF"]).optional(),
   permissions: z.array(PERMISSION_KEY_SCHEMA).max(10).optional(),
+});
+
+export const knowledgeTopicCreateSchema = z.object({
+  title: z.string().min(1).max(200),
+  content: z.string().min(1).max(4000),
+  categoryId: z.string().min(1),
+  keywords: z.array(z.string().max(30)).max(20).default([]),
+});
+export const knowledgeTopicUpdateSchema = knowledgeTopicCreateSchema.partial();
+
+export const knowledgeUploadConfirmSchema = z.object({
+  topics: z.array(knowledgeTopicCreateSchema).max(50).default([]),
 });
 
 export const tableCreateSchema = z.object({

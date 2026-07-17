@@ -8,6 +8,7 @@ import MediaLibraryPanel from "@/components/admin/MediaLibraryPanel";
 import OrdersPanel from "@/components/admin/OrdersPanel";
 import UsersPanel from "@/components/admin/UsersPanel";
 import TablesPanel from "@/components/admin/TablesPanel";
+import KnowledgeAdminPage from "@/components/admin/Knowledge";
 import { adminApi } from "@/lib/admin-api";
 import { SessionUser, userHasPermission } from "@/lib/auth-types";
 
@@ -15,6 +16,7 @@ const MEDIA_TAB_KEY = "media-library";
 const ORDERS_TAB_KEY = "orders";
 const USERS_TAB_KEY = "users";
 const TABLES_TAB_KEY = "tables";
+const KNOWLEDGE_TAB_KEY = "knowledge";
 
 export default function AdminShell({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {
   const [dbStatus, setDbStatus] = useState<"checking" | "connected" | "unconfigured" | "unreachable">("checking");
@@ -26,11 +28,13 @@ export default function AdminShell({ user, onLogout }: { user: SessionUser; onLo
   const canOrders = userHasPermission(user, "orders");
   const canMedia = userHasPermission(user, "media");
   const canTables = userHasPermission(user, "tables");
+  const canKnowledge = userHasPermission(user, "knowledge");
   const isAdmin = user.role === "ADMIN";
 
   const firstTabKey = canOrders
     ? ORDERS_TAB_KEY
-    : visibleResourceConfigs[0]?.key ?? (canMedia ? MEDIA_TAB_KEY : canTables ? TABLES_TAB_KEY : isAdmin ? USERS_TAB_KEY : "");
+    : visibleResourceConfigs[0]?.key ??
+      (canMedia ? MEDIA_TAB_KEY : canTables ? TABLES_TAB_KEY : canKnowledge ? KNOWLEDGE_TAB_KEY : isAdmin ? USERS_TAB_KEY : "");
   const [activeKey, setActiveKey] = useState(firstTabKey);
 
   useEffect(() => {
@@ -119,6 +123,12 @@ export default function AdminShell({ user, onLogout }: { user: SessionUser; onLo
               {tabButton(USERS_TAB_KEY, "👤 Người dùng")}
             </>
           )}
+          {canKnowledge && (
+            <>
+              <div className="my-2 border-t border-latte-800" />
+              {tabButton(KNOWLEDGE_TAB_KEY, "📚 Kiến thức")}
+            </>
+          )}
         </nav>
 
         <div className="mt-4 border-t border-latte-800 pt-4">
@@ -155,6 +165,8 @@ export default function AdminShell({ user, onLogout }: { user: SessionUser; onLo
             <TablesPanel />
           ) : activeKey === USERS_TAB_KEY && isAdmin ? (
             <UsersPanel currentUser={user} />
+          ) : activeKey === KNOWLEDGE_TAB_KEY && canKnowledge ? (
+            <KnowledgeAdminPage />
           ) : active ? (
             <ResourcePanel key={active.key} config={active} />
           ) : (
