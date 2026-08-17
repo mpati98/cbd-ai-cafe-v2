@@ -21,7 +21,7 @@ const client = new InferenceClient(process.env.HF_API_TOKEN);
  * (https://huggingface.co/black-forest-labs/FLUX.1-schnell) bằng tài khoản tạo token đó.
  */
 export async function generateIllustration(prompt: string): Promise<string> {
-  if (!process.env.HF_HUB_TOKEN) {
+  if (!process.env.HF_API_TOKEN) {
     throw new Error("Thiếu HF_API_TOKEN trong biến môi trường.");
   }
 
