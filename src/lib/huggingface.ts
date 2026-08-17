@@ -27,11 +27,14 @@ export async function generateIllustration(prompt: string): Promise<string> {
 
   const fullPrompt = `${prompt}, ${STYLE_SUFFIX}`;
 
-  const blob = await client.textToImage({
-    model: "black-forest-labs/FLUX.1-schnell",
-    provider: "auto",
-    inputs: fullPrompt,
-  });
+  const blob = await client.textToImage(
+    {
+      model: "black-forest-labs/FLUX.1-schnell",
+      provider: "auto",
+      inputs: fullPrompt,
+    },
+    { outputType: "blob" }
+  );
 
   const arrayBuffer = await blob.arrayBuffer();
   const base64 = Buffer.from(arrayBuffer).toString("base64");
