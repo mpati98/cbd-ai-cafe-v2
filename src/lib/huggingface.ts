@@ -14,9 +14,9 @@ const STYLE_SUFFIX =
  * (https://huggingface.co/black-forest-labs/FLUX.1-schnell) bằng tài khoản tạo token đó.
  */
 export async function generateIllustration(prompt: string): Promise<string> {
-  const token = process.env.HF_API_TOKEN;
+  const token = process.env.HF_HUB_TOKEN;
   if (!token) {
-    throw new Error("Thiếu HF_API_TOKEN trong biến môi trường.");
+    throw new Error("Thiếu HF_HUB_TOKEN trong biến môi trường.");
   }
 
   const fullPrompt = `${prompt}, ${STYLE_SUFFIX}`;
