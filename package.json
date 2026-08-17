@@ -4,13 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "voice:server": "whisper-server/start.sh",
+    "tts:server": "tts-server/start.sh",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "dev:all": "concurrently -n whisper,tts,next -c blue,magenta,green \"cd whisper-server && .venv/bin/uvicorn server:app --host 0.0.0.0 --port 8008\" \"cd tts-server && .venv/bin/uvicorn server:app --host 0.0.0.0 --port 8009\" \"next dev\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.1",
@@ -30,6 +33,7 @@
     "@types/node": "^20.14.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "concurrently": "^10.0.5",
     "prisma": "^7.8.0",
     "tailwindcss": "^4.3.2",
     "tsx": "^4.16.2",

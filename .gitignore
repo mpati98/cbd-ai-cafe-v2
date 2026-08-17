@@ -23,3 +23,11 @@ next-env.d.ts
 
 # Prisma 7 generated client (regenerate with `npm install` / `prisma generate`)
 /src/generated/
+
+# faster-whisper local server (venv + downloaded model weights)
+/whisper-server/.venv/
+/whisper-server/__pycache__/
+
+# VieNeu-TTS local server (venv + downloaded model weights)
+/tts-server/.venv/
+/tts-server/__pycache__/

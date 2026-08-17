@@ -99,7 +99,7 @@ model MenuItem {
   image        MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
   /// Tag dùng để order-chatbot gợi ý món theo câu trả lời của khách.
   /// Giá trị hợp lệ: "dam" | "nhe" (đậm đà/nhẹ nhàng), "nong" | "lanh" (nóng/đá),
-  /// "trai-cay" | "truyen-thong" (trái cây/truyền thống) — xem src/lib/chatbot.ts
+  /// "trai-cay" | "truyen-thong" (trái cây/truyền thống) — xem src/lib/order-chat.ts
   tags         String[] @default([])
   orderItems   OrderItem[]
   createdAt    DateTime @default(now())

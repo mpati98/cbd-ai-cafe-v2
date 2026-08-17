@@ -110,3 +110,12 @@ export const tableUpdateSchema = z.object({
   isActive: z.boolean().optional(),
   regenerateCode: z.boolean().optional(),
 });
+
+export const orderChatRequestSchema = z.object({
+  history: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), text: z.string().max(1000) }))
+    .max(40)
+    .default([]),
+  message: z.string().min(1).max(1000),
+  tableLabel: z.string().max(80).nullable().optional(),
+});

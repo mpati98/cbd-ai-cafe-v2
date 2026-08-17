@@ -6,7 +6,6 @@ import Image from "next/image";
 import OrderMenu, { OrderMenuItem } from "@/components/order/OrderMenu";
 import ChatPanel from "@/components/order/ChatPanel";
 import CartSummary from "@/components/order/CartSummary";
-import { ChatMenuItem } from "@/lib/chatbot";
 
 export type CartLine = { itemId: string; name: string; priceVnd: number; qty: number };
 export type TableContext = { code: string; label: string };
@@ -44,15 +43,15 @@ export default function OrderExperience({
     }
   }, [cart, hydrated]);
 
-  function addToCart(itemId: string) {
+  function addToCart(itemId: string, quantity = 1) {
     const item = items.find((i) => i.id === itemId);
     if (!item) return;
     setCart((prev) => {
       const existing = prev.find((l) => l.itemId === itemId);
       if (existing) {
-        return prev.map((l) => (l.itemId === itemId ? { ...l, qty: l.qty + 1 } : l));
+        return prev.map((l) => (l.itemId === itemId ? { ...l, qty: l.qty + quantity } : l));
       }
-      return [...prev, { itemId, name: item.name, priceVnd: item.priceVnd, qty: 1 }];
+      return [...prev, { itemId, name: item.name, priceVnd: item.priceVnd, qty: quantity }];
     });
   }
 
@@ -68,14 +67,6 @@ export default function OrderExperience({
   }
 
   const cartQtyByItemId: Record<string, number> = Object.fromEntries(cart.map((l) => [l.itemId, l.qty]));
-  const chatItems: ChatMenuItem[] = items.map((i) => ({
-    id: i.id,
-    name: i.name,
-    description: i.description,
-    priceVnd: i.priceVnd,
-    isBestSeller: i.isBestSeller,
-    tags: i.tags,
-  }));
 
   return (
     <div className="flex min-h-screen flex-col bg-latte-950 lg:h-screen lg:overflow-hidden">
@@ -104,7 +95,7 @@ export default function OrderExperience({
         </main>
 
         <aside className="order-1 flex h-[60dvh] shrink-0 flex-col overflow-hidden border-b border-latte-800 lg:order-2 lg:h-full lg:w-1/3 lg:border-b-0 lg:border-l">
-          <ChatPanel items={chatItems} onHighlight={setHighlightedItemId} onAddToCart={addToCart} />
+          <ChatPanel items={items} tableLabel={table?.label ?? null} onHighlight={setHighlightedItemId} onAddToCart={addToCart} />
         </aside>
       </div>
 

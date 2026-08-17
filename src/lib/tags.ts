@@ -1,7 +1,7 @@
 /**
- * Tag gắn cho món trong thực đơn, dùng để order-chatbot gợi ý món theo câu
- * trả lời của khách (xem src/lib/chatbot.ts). Mỗi trục là 1 cặp đối lập —
- * món nên gắn tối đa 1 tag mỗi trục để việc chấm điểm gợi ý rõ ràng.
+ * Tag gắn cho món trong thực đơn — Claude dùng các nhãn này (qua tagLabel())
+ * để hiểu đặc điểm từng món khi tư vấn (xem src/lib/order-chat.ts). Mỗi trục
+ * là 1 cặp đối lập — món nên gắn tối đa 1 tag mỗi trục để đặc điểm rõ ràng.
  */
 export type TagOption = { value: string; label: string };
 export type TagAxis = { key: string; question: string; options: TagOption[] };

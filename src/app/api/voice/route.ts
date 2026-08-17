@@ -1,28 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clientIp, isRateLimited } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const GROQ_TRANSCRIPTION_URL =
-  "https://api.groq.com/openai/v1/audio/transcriptions";
-const MODEL = "whisper-large-v3-turbo";
+// faster-whisper chạy local (xem whisper-server/) — model load 1 lần, giữ warm.
+const WHISPER_SERVER_URL =
+  process.env.WHISPER_SERVER_URL ?? "http://127.0.0.1:8008/transcribe";
 const MAX_AUDIO_BYTES = 5 * 1024 * 1024; // 5MB ~ dư sức cho 1 câu order
 
-// ---- Rate limit đơn giản trong bộ nhớ (đủ cho MVP, mỗi instance server) ----
 const WINDOW_MS = 60_000;
 const MAX_REQ_PER_WINDOW = 12;
-const hits = new Map<string, { count: number; windowStart: number }>();
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = hits.get(ip);
-  if (!entry || now - entry.windowStart > WINDOW_MS) {
-    hits.set(ip, { count: 1, windowStart: now });
-    return false;
-  }
-  entry.count += 1;
-  return entry.count > MAX_REQ_PER_WINDOW;
-}
 
 function extFromMime(mime: string): string {
   if (mime.includes("webm")) return "webm";
@@ -34,17 +22,8 @@ function extFromMime(mime: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "Thiếu GROQ_API_KEY trong biến môi trường (.env)." },
-      { status: 500 }
-    );
-  }
-
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (isRateLimited(ip)) {
+  const ip = clientIp(req);
+  if (isRateLimited("voice", ip, WINDOW_MS, MAX_REQ_PER_WINDOW)) {
     return NextResponse.json(
       { error: "Bạn thao tác hơi nhanh, vui lòng thử lại sau ít giây." },
       { status: 429 }
@@ -78,36 +57,30 @@ export async function POST(req: NextRequest) {
   // Gợi ý ngữ cảnh: tên món trong menu giúp Whisper nhận đúng "Cold Brew", "Latte"...
   const hint = typeof form.get("hint") === "string" ? (form.get("hint") as string) : "";
 
-  const groqForm = new FormData();
+  const whisperForm = new FormData();
   const mime = audio.type || "audio/webm";
-  groqForm.append(
-    "file",
+  whisperForm.append(
+    "audio",
     new File([audio], `order.${extFromMime(mime)}`, { type: mime })
   );
-  groqForm.append("model", MODEL);
-  groqForm.append("language", "vi");
-  groqForm.append("temperature", "0");
-  groqForm.append("response_format", "json");
   if (hint) {
-    // Groq/Whisper dùng prompt như "từ điển" ngữ cảnh — cắt bớt cho an toàn
-    groqForm.append("prompt", hint.slice(0, 800));
+    // faster-whisper dùng prompt như "từ điển" ngữ cảnh — cắt bớt cho an toàn
+    whisperForm.append("hint", hint.slice(0, 800));
   }
 
   try {
-    const res = await fetch(GROQ_TRANSCRIPTION_URL, {
+    const res = await fetch(WHISPER_SERVER_URL, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: groqForm,
+      body: whisperForm,
     });
 
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      console.error("[/api/voice] Groq error", res.status, detail);
-      const friendly =
-        res.status === 429
-          ? "Hệ thống nhận giọng nói đang bận, vui lòng thử lại sau giây lát."
-          : "Không xử lý được giọng nói lúc này, bạn có thể gõ tin nhắn nhé.";
-      return NextResponse.json({ error: friendly }, { status: 502 });
+      console.error("[/api/voice] whisper-server error", res.status, detail);
+      return NextResponse.json(
+        { error: "Không xử lý được giọng nói lúc này, bạn có thể gõ tin nhắn nhé." },
+        { status: 502 }
+      );
     }
 
     const data = (await res.json()) as { text?: string };

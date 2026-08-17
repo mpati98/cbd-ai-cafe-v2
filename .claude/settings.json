@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:huggingface.co)",
+      "WebFetch(domain:github.com)",
+      "Bash(mkdir -p /tmp/claude-1000/-home-arti-Documents-CBD-Projects-cbd-ai-cafe/d9c3a7b1-7e8d-40b3-9c04-7f6bfd5d082b/scratchpad/vieneu-test)",
+      "Bash(/usr/bin/python3.14 -m venv .venv)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(.venv/bin/python -c \"import vieneu; print\\(vieneu.__file__\\); from vieneu import Vieneu; print\\('import ok'\\)\")",
+      "Bash(.venv/bin/python -c ' *)"
+    ]
+  }
+}

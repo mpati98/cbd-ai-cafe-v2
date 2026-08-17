@@ -87,7 +87,7 @@ src/
       media/route.ts                                           # GET (list) / POST (upload+convert ảnh)
       media/[id]/route.ts                                        # DELETE ảnh
       images/[id]/route.ts                                         # GET — trả thẳng bytes ảnh WebP (công khai)
-      voice/route.ts                                                 # POST — ghi âm -> Groq Whisper -> chữ (công khai)
+      voice/route.ts                                                 # POST — ghi âm -> faster-whisper (local) -> chữ (công khai)
       orders/route.ts                                                # POST (công khai) / GET (cần quyền orders)
       orders/[id]/route.ts                                             # GET / PATCH (4 mốc) / DELETE
       stats/route.ts                                                     # GET — số đơn, doanh thu, top món
@@ -256,16 +256,19 @@ việc bot **đọc to câu trả lời** (dùng
 có sẵn trong trình duyệt — miễn phí, không cần đổi gì).
 
 **Kiến trúc nhận diện giọng nói:** ghi âm bằng `MediaRecorder` ngay trên
-trình duyệt, gửi file âm thanh lên server, server gọi
-[Groq](https://console.groq.com) (model `whisper-large-v3-turbo`) để chuyển
-thành chữ, trả kết quả về — thay cho Web Speech API có sẵn trong trình duyệt
-(SpeechRecognition) đã dùng ở bản trước. Lý do đổi: SpeechRecognition của
-trình duyệt cho tiếng Việt chỉ ổn trong môi trường yên tĩnh, không có cách
+trình duyệt, gửi file âm thanh lên server, server forward sang
+**faster-whisper chạy local** (`whisper-server/`, model `medium`, GPU) để
+chuyển thành chữ, trả kết quả về — thay cho Web Speech API có sẵn trong
+trình duyệt (SpeechRecognition) đã dùng ở bản trước. Lý do đổi: SpeechRecognition
+của trình duyệt cho tiếng Việt chỉ ổn trong môi trường yên tĩnh, không có cách
 nào "gợi ý" thêm từ vựng đặc thù (tên món), và Firefox không hỗ trợ luôn.
-Groq Whisper chính xác hơn hẳn với tiếng Việt trong môi trường ồn (quán cà
-phê), và hỗ trợ gửi kèm **`prompt`/gợi ý ngữ cảnh** — API route tự đính kèm
-toàn bộ tên món trong thực đơn vào gợi ý để Whisper nhận đúng tên riêng như
-"Cold Brew", "Bạc Xỉu" thay vì đoán chữ gần giống.
+Whisper chính xác hơn hẳn với tiếng Việt trong môi trường ồn (quán cà phê),
+và hỗ trợ gửi kèm **prompt/gợi ý ngữ cảnh** — API route tự đính kèm toàn bộ
+tên món trong thực đơn vào gợi ý để Whisper nhận đúng tên riêng như
+"Cold Brew", "Bạc Xỉu" thay vì đoán chữ gần giống. Chạy local (thay vì gọi
+API Groq) nghĩa là không tốn phí theo request, không giới hạn quota, và âm
+thanh không rời khỏi máy — đổi lại cần GPU đủ mạnh và phải tự chạy
+`whisper-server` (xem `VOICE-SETUP.md`).
 
 **Tự động dừng ghi âm** theo 2 mốc — dừng ngay khi đạt mốc nào trước:
 - **Im lặng liên tục 3 giây** — theo dõi mức âm lượng qua Web Audio API
@@ -295,9 +298,9 @@ tránh log rác trong production.
 Cấu hình 2 mốc này ở `useVoiceInput({ silenceTimeoutMs, maxDurationMs })`
 trong `src/hooks/useVoiceInput.ts`.
 
-**Cần cấu hình:** thêm `GROQ_API_KEY` vào `.env` (lấy tại
-[console.groq.com/keys](https://console.groq.com/keys), có gói miễn phí) —
-xem `.env.example`. Chưa đặt key thì nút mic vẫn hiện (ghi âm được) nhưng
+**Cần cấu hình:** chạy `npm run voice:server` (xem `VOICE-SETUP.md` để cài
+đặt lần đầu — venv Python riêng trong `whisper-server/`, không đụng Python hệ
+thống). Whisper-server chưa chạy thì nút mic vẫn hiện (ghi âm được) nhưng
 bấm gửi sẽ báo lỗi thân thiện, không crash trang.
 
 **Giới hạn tốc độ (rate limit):** `/api/voice` tự chặn nếu 1 IP gửi quá 12
@@ -310,8 +313,8 @@ limit tập trung (Redis/Upstash) để chính xác hơn.
 ```
 src/hooks/useVoiceInput.ts             # ghi âm (MediaRecorder) + tự dừng khi im lặng + gọi /api/voice
 src/components/VoiceMicButton.tsx        # nút mic (idle/recording/transcribing/error), hiệu ứng sóng lan toả
-src/app/api/voice/route.ts                 # nhận file âm thanh, gọi Groq Whisper, trả chữ về
-src/lib/speech.ts                            # chỉ còn phần đọc to (TTS) — nhận diện đã chuyển sang Groq ở trên
+src/app/api/voice/route.ts                 # nhận file âm thanh, forward sang whisper-server local, trả chữ về
+src/lib/speech.ts                            # chỉ còn phần đọc to (TTS) — nhận diện đã chuyển sang faster-whisper ở trên
 ```
 
 **Bug đã sửa trong logic chatbot** (không liên quan chất lượng nhận diện —

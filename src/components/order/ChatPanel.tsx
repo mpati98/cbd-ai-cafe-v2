@@ -1,9 +1,30 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChatMenuItem, ChatState, handleUserInput, initialChatState } from "@/lib/chatbot";
-import { isSpeechSynthesisSupported, speak, stopSpeaking } from "@/lib/speech";
+import { isVoiceOutputSupported, speak, stopSpeaking } from "@/lib/speech";
 import VoiceMicButton from "@/components/VoiceMicButton";
+import type { OrderChatEffect, OrderChatResponseBody, OrderChatTurn } from "@/types/order-chat";
+
+type ChatMessage = { id: string; from: "bot" | "user"; text: string };
+
+let msgCounter = 0;
+function nextId(): string {
+  msgCounter += 1;
+  return `msg_${Date.now()}_${msgCounter}`;
+}
+function botMessage(text: string): ChatMessage {
+  return { id: nextId(), from: "bot", text };
+}
+function userMessage(text: string): ChatMessage {
+  return { id: nextId(), from: "user", text };
+}
+
+const GREETING = "Chào bạn! Mình là CBD Robot 🤖☕ Bạn muốn uống gì hôm nay, hay để mình gợi ý nhé?";
+
+const QUICK_ACTIONS: { label: string; message: string }[] = [
+  { label: "Gợi ý giúp mình", message: "Gợi ý giúp mình vài món đi" },
+  { label: "Món nào bán chạy?", message: "Món nào đang bán chạy nhất vậy?" },
+];
 
 function renderBoldText(text: string) {
   // Hỗ trợ **in đậm** đơn giản trong tin nhắn bot, không cần thư viện markdown.
@@ -13,17 +34,30 @@ function renderBoldText(text: string) {
   );
 }
 
+/** Lịch sử gửi kèm request — chỉ cần role + text, giới hạn để tránh phình payload. */
+function toHistory(messages: ChatMessage[]): OrderChatTurn[] {
+  return messages.slice(-16).map((m) => ({ role: m.from === "bot" ? "assistant" : "user", text: m.text }));
+}
+
 export default function ChatPanel({
   items,
+  tableLabel,
   onHighlight,
   onAddToCart,
 }: {
-  items: ChatMenuItem[];
+  items: { id: string; name: string }[];
+  tableLabel?: string | null;
   onHighlight: (itemId: string | null) => void;
-  onAddToCart: (itemId: string) => void;
+  onAddToCart: (itemId: string, quantity?: number) => void;
 }) {
-  const [state, setState] = useState<ChatState>(() => initialChatState());
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [botMessage(GREETING)]);
   const [inputValue, setInputValue] = useState("");
+  const [sending, setSending] = useState(false);
+  // Món vừa được bot highlight ở lượt gần nhất mà CHƯA thêm vào giỏ — hiện nút
+  // xác nhận nhanh 1-chạm thay vì bắt khách gõ lại "ừ, lấy món đó" (vd flow
+  // trong ảnh chụp màn hình người dùng gửi: hỏi/gợi ý xong không có cách nào
+  // thêm ngay, phải gõ tay thêm 1 câu xác nhận).
+  const [suggestedItem, setSuggestedItem] = useState<{ id: string; name: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -32,40 +66,73 @@ export default function ChatPanel({
   const lastSpokenId = useRef<string | null>(null);
 
   useEffect(() => {
-    setTtsSupported(isSpeechSynthesisSupported());
+    setTtsSupported(isVoiceOutputSupported());
     return () => stopSpeaking();
   }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [state.messages]);
-
-  useEffect(() => {
-    onHighlight(state.highlightedItemId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.highlightedItemId]);
+  }, [messages, sending]);
 
   // Đọc to câu trả lời mới nhất của bot khi bật "đọc to" — chỉ đọc tin nhắn
   // CHƯA đọc (tránh đọc lại khi re-render) và chỉ khi đó là tin nhắn cuối.
   useEffect(() => {
     if (!voiceOutputEnabled) return;
-    const last = state.messages[state.messages.length - 1];
+    const last = messages[messages.length - 1];
     if (last && last.from === "bot" && last.id !== lastSpokenId.current) {
       lastSpokenId.current = last.id;
       speak(last.text.replace(/\*\*/g, ""));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.messages, voiceOutputEnabled]);
+  }, [messages, voiceOutputEnabled]);
 
-  function submit(value: string) {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    const next = handleUserInput(state, trimmed, items);
-    if (next.pendingEffect?.type === "add_to_cart") {
-      onAddToCart(next.pendingEffect.itemId);
+  function applyEffects(effects: OrderChatEffect[]) {
+    let highlightedId: string | null = null;
+    const addedIds = new Set<string>();
+    for (const effect of effects) {
+      if (effect.type === "highlight") {
+        onHighlight(effect.itemId);
+        highlightedId = effect.itemId;
+      } else if (effect.type === "add_to_cart") {
+        onAddToCart(effect.itemId, effect.quantity);
+        addedIds.add(effect.itemId);
+      }
     }
-    setState({ ...next, pendingEffect: null });
+    // Chỉ đề xuất xác nhận nhanh cho món VỪA highlight mà chưa được thêm luôn
+    // trong cùng lượt này (nếu bot đã tự thêm rồi thì không cần hỏi lại).
+    const item = highlightedId && !addedIds.has(highlightedId) ? items.find((i) => i.id === highlightedId) : undefined;
+    setSuggestedItem(item ? { id: item.id, name: item.name } : null);
+  }
+
+  async function submit(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed || sending) return;
+
+    const history = toHistory(messages);
+    setMessages((prev) => [...prev, userMessage(trimmed)]);
     setInputValue("");
+    setSending(true);
+
+    try {
+      const res = await fetch("/api/order-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ history, message: trimmed, tableLabel: tableLabel ?? null }),
+      });
+      const data = (await res.json().catch(() => null)) as (OrderChatResponseBody & { error?: string }) | null;
+
+      if (!res.ok || !data) {
+        setMessages((prev) => [...prev, botMessage(data?.error ?? "Mình đang gặp chút trục trặc, bạn thử lại sau ít giây nhé 🙏")]);
+        return;
+      }
+
+      setMessages((prev) => [...prev, botMessage(data.reply)]);
+      applyEffects(data.effects ?? []);
+    } catch {
+      setMessages((prev) => [...prev, botMessage("Mình không kết nối được, bạn kiểm tra mạng rồi thử lại nhé 🙏")]);
+    } finally {
+      setSending(false);
+    }
   }
 
   // Cố tình KHÔNG tự gửi ngay — chỉ điền vào ô nhập để khách xem lại/sửa
@@ -83,8 +150,6 @@ export default function ChatPanel({
     });
   }
 
-  const inputDisabled = state.step === "closed" && state.quickReplies.some((r) => r.value === "restart");
-
   return (
     <div className="flex h-full min-h-0 flex-col bg-latte-900">
       <div className="flex shrink-0 items-center justify-between gap-2.5 border-b border-latte-800 px-4 py-3.5">
@@ -95,7 +160,7 @@ export default function ChatPanel({
           <div className="leading-none">
             <b className="font-display text-sm font-bold text-latte-100">CBD Robot</b>
             <span className="mt-0.5 flex items-center gap-1 text-[0.65rem] text-latte-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Đang tư vấn
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> {sending ? "Đang trả lời..." : "Đang tư vấn"}
             </span>
           </div>
         </div>
@@ -116,7 +181,7 @@ export default function ChatPanel({
       </div>
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
-        {state.messages.map((m) => (
+        {messages.map((m) => (
           <div key={m.id} className={`flex ${m.from === "user" ? "justify-end" : "justify-start"}`}>
             <div
               className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
@@ -130,15 +195,46 @@ export default function ChatPanel({
           </div>
         ))}
 
-        {state.quickReplies.length > 0 && (
+        {sending && (
+          <div className="flex justify-start">
+            <div className="flex gap-1 rounded-2xl rounded-bl-sm bg-latte-800 px-3.5 py-2.5">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="h-1.5 w-1.5 animate-bounce rounded-full bg-latte-400"
+                  style={{ animationDelay: `${i * 0.12}s` }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!sending && suggestedItem && (
           <div className="flex flex-wrap justify-start gap-2 pt-1">
-            {state.quickReplies.map((r) => (
+            <button
+              onClick={() => submit(`Ừ, cho mình đặt ${suggestedItem.name} nhé`)}
+              className="rounded-full border border-orange-500/60 bg-orange-500/20 px-3.5 py-1.5 text-xs font-semibold text-orange-200 transition-colors hover:bg-orange-500/30"
+            >
+              ✅ Có, đặt món này
+            </button>
+            <button
+              onClick={() => submit("Không, gợi ý món khác giúp mình")}
+              className="rounded-full border border-latte-700 px-3.5 py-1.5 text-xs font-semibold text-latte-300 transition-colors hover:bg-latte-800"
+            >
+              Xem món khác
+            </button>
+          </div>
+        )}
+
+        {!sending && !suggestedItem && (
+          <div className="flex flex-wrap justify-start gap-2 pt-1">
+            {QUICK_ACTIONS.map((qa) => (
               <button
-                key={r.value}
-                onClick={() => submit(r.value)}
+                key={qa.label}
+                onClick={() => submit(qa.message)}
                 className="rounded-full border border-orange-500/40 bg-orange-500/10 px-3.5 py-1.5 text-xs font-semibold text-orange-300 transition-colors hover:bg-orange-500/20"
               >
-                {r.label}
+                {qa.label}
               </button>
             ))}
           </div>
@@ -166,12 +262,13 @@ export default function ChatPanel({
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder={inputDisabled ? "Bấm \"Bắt đầu lại\" ở trên nhé" : "Nhập tin nhắn..."}
+          disabled={sending}
+          placeholder="Nhập tin nhắn..."
           className="flex-1 rounded-full border border-latte-700 bg-latte-800 px-4 py-2 text-sm text-latte-100 placeholder:text-latte-400 focus:border-orange-500/60 disabled:opacity-60"
         />
         <button
           type="submit"
-          disabled={!inputValue.trim()}
+          disabled={!inputValue.trim() || sending}
           aria-label="Gửi"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-latte-950 shadow-neon-orange-sm disabled:cursor-not-allowed disabled:opacity-40"
         >
