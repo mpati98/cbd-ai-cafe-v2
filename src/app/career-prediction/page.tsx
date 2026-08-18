@@ -11,12 +11,17 @@ const QUIZ_QUESTIONS = [
   { key: "so_thich", label: "Cuối tuần bạn thích làm gì?" },
 ];
 
-export default function CareerPrediction() {
+interface Result {
+  vibe: string;
+  careerName: string;
+  explanation: string;
+  imageUrl: string;
+}
+
+export default function CareerPredictionPageExample() {
   const [step, setStep] = useState<"quiz" | "photo" | "result">("quiz");
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<{ vibe: string; prediction: string } | null>(
-    null
-  );
+  const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,10 +32,7 @@ export default function CareerPrediction() {
       const res = await fetch("/api/career-prediction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          photoDataUrl: dataUrl,
-          quizAnswers: answers,
-        }),
+        body: JSON.stringify({ photoDataUrl: dataUrl, quizAnswers: answers }),
       });
 
       if (!res.ok) {
@@ -38,7 +40,7 @@ export default function CareerPrediction() {
         throw new Error(data.error || "Có lỗi xảy ra.");
       }
 
-      const data = await res.json();
+      const data = (await res.json()) as Result;
       setResult(data);
       setStep("result");
     } catch (e) {
@@ -77,9 +79,12 @@ export default function CareerPrediction() {
       <div className="max-w-sm mx-auto p-6">
         <PhotoCapture onCapture={handlePhotoCaptured} />
         {loading && (
-          <p className="text-center text-amber-300 mt-4 text-sm">
-            Đang đọc vibe của bạn...
-          </p>
+          <div className="flex flex-col items-center gap-2 mt-6">
+            <div className="w-6 h-6 border-2 border-amber-300 border-t-transparent rounded-full animate-spin" />
+            <p className="text-amber-300 text-sm">
+              Đang đọc vibe và tạo ảnh minh hoạ...
+            </p>
+          </div>
         )}
         {error && (
           <p className="text-center text-red-400 mt-4 text-sm">{error}</p>
@@ -89,17 +94,44 @@ export default function CareerPrediction() {
   }
 
   return (
-    <div className="max-w-sm mx-auto p-6 flex flex-col gap-4">
+    <div className="max-w-sm mx-auto p-6 flex flex-col gap-5">
+      {result?.imageUrl && (
+        <div className="w-full aspect-square rounded-2xl overflow-hidden border border-amber-400/40">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={result.imageUrl}
+            alt={result.careerName}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+
       <div>
-        <h3 className="text-amber-300 font-semibold mb-1">Vibe của bạn</h3>
-        <p className="text-white/80 text-sm">{result?.vibe}</p>
+        <h3 className="text-amber-300 font-semibold mb-1 text-sm uppercase tracking-wide">
+          Vibe của bạn
+        </h3>
+        <p className="text-white/80 text-sm leading-relaxed">{result?.vibe}</p>
       </div>
+
       <div>
-        <h3 className="text-amber-300 font-semibold mb-1">Dự đoán nghề nghiệp</h3>
-        <p className="text-white/80 text-sm whitespace-pre-line">
-          {result?.prediction}
+        <h3 className="text-amber-300 font-semibold mb-1 text-sm uppercase tracking-wide">
+          Nghề nghiệp dự đoán
+        </h3>
+        <p className="text-white text-xl font-bold mb-2">{result?.careerName}</p>
+        <p className="text-white/80 text-sm leading-relaxed">
+          {result?.explanation}
         </p>
       </div>
+
+      <button
+        onClick={() => {
+          setStep("photo");
+          setResult(null);
+        }}
+        className="py-2.5 rounded-xl border border-white/20 text-white/80 text-sm font-medium hover:bg-white/5 transition-colors"
+      >
+        Thử lại
+      </button>
     </div>
   );
 }
