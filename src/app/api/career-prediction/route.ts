@@ -30,6 +30,15 @@ function parseDataUrl(dataUrl: string): { mediaType: string; base64: string } | 
   return { mediaType: match[1], base64: match[2] };
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(message)), ms)
+    ),
+  ]);
+}
+
 function extractJson(text: string): unknown {
   // Phòng trường hợp model bọc JSON trong ```json ... ``` dù đã dặn không làm vậy
   const cleaned = text.replace(/```json|```/g, "").trim();
@@ -60,6 +69,7 @@ export async function POST(req: NextRequest) {
 
     // ---- Bước 1: Claude Haiku vision đọc "vibe" từ ảnh ----
     // Ảnh chỉ được gửi trong request này, không ghi ra disk/DB ở đâu cả.
+    console.log("[career-prediction] bước 1: gọi Claude vibe reading...");
     const vibeResponse = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 400,
@@ -90,8 +100,10 @@ export async function POST(req: NextRequest) {
       .map((b) => b.text)
       .join("\n")
       .trim();
+    console.log("[career-prediction] bước 1 xong, vibe:", vibeText.slice(0, 80));
 
     // ---- Bước 2: Dự đoán nghề nghiệp - bắt model trả JSON để dễ hiển thị + lấy prompt tạo ảnh ----
+    console.log("[career-prediction] bước 2: gọi Claude career prediction...");
     const predictionResponse = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 600,
@@ -116,8 +128,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log("[career-prediction] bước 2 xong, career:", prediction.careerName);
+
     // ---- Bước 3: Tạo ảnh minh hoạ biểu tượng bằng Flux Schnell ----
-    const imageUrl = await generateIllustration(prediction.imagePrompt);
+    // Giới hạn thời gian chờ HF để không bao giờ treo vô thời hạn - nếu quá 45s
+    // (thường do model đang "cold start" ở provider) thì báo lỗi rõ ràng thay vì kẹt spinner mãi.
+    console.log("[career-prediction] bước 3: gọi Hugging Face tạo ảnh...");
+    const imageUrl = await withTimeout(
+      generateIllustration(prediction.imagePrompt),
+      45_000,
+      "Hugging Face tạo ảnh quá lâu (>45s)"
+    );
+    console.log("[career-prediction] bước 3 xong, ảnh dài (base64 chars):", imageUrl.length);
 
     // Ảnh gốc (base64, mediaType) không được tham chiếu gì thêm sau điểm này.
 
