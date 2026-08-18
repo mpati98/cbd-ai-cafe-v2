@@ -2,6 +2,53 @@
 
 import { useState, useRef, useCallback } from "react";
 
+/**
+ * Resize ảnh về tối đa maxDimension (cạnh dài nhất) và nén lại thành JPEG chất lượng
+ * quality, để giảm dung lượng payload gửi lên server - ảnh gốc từ camera điện thoại
+ * có thể 3-8MB, gây "Load failed" trên mạng chậm/không ổn định (WiFi quán, 4G yếu...).
+ */
+function resizeAndCompressImage(
+  file: File,
+  maxDimension = 1024,
+  quality = 0.85
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      let { width, height } = img;
+      if (width > height && width > maxDimension) {
+        height = Math.round((height * maxDimension) / width);
+        width = maxDimension;
+      } else if (height > maxDimension) {
+        width = Math.round((width * maxDimension) / height);
+        height = maxDimension;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Không tạo được canvas để nén ảnh."));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Không đọc được ảnh."));
+    };
+
+    img.src = objectUrl;
+  });
+}
+
 interface PhotoCaptureProps {
   /** Gọi khi người dùng đã chụp xong và xác nhận dùng ảnh này */
   onCapture: (dataUrl: string) => void;
@@ -44,17 +91,15 @@ export default function PhotoCapture({ onCapture, onClear }: PhotoCaptureProps) 
       }
 
       setIsProcessing(true);
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        setPreview(dataUrl);
-        setIsProcessing(false);
-      };
-      reader.onerror = () => {
-        setError("Không đọc được ảnh, vui lòng thử lại.");
-        setIsProcessing(false);
-      };
-      reader.readAsDataURL(file);
+      resizeAndCompressImage(file)
+        .then((dataUrl) => {
+          setPreview(dataUrl);
+          setIsProcessing(false);
+        })
+        .catch(() => {
+          setError("Không xử lý được ảnh, vui lòng thử lại.");
+          setIsProcessing(false);
+        });
 
       // Reset input để có thể chọn/chụp lại cùng 1 file nếu cần
       e.target.value = "";
