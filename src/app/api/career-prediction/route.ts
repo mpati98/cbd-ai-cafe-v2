@@ -124,9 +124,13 @@ export async function POST(req: NextRequest) {
     console.log("[career-prediction] bước 2 xong, career:", prediction.careerName);
 
     // ---- Bước 3: Tạo ảnh check-in (image-to-image, giữ nét ảnh gốc) ----
+    // Style cố định ở đây (không để Claude tự quyết định) để luôn nhất quán:
+    // illustration/poster art, KHÔNG photorealistic - giữ đường nét/đặc điểm gốc
+    // nhưng vẽ lại theo phong cách digital art như banner Ms Moon của quán.
+    const fullEditPrompt = `${prediction.checkinPrompt}, ${STYLE_SUFFIX}`;
     console.log("[career-prediction] bước 3: gọi Hugging Face tạo ảnh check-in...");
     const imageUrl = await withTimeout(
-      generateCheckinPhoto({ mediaType, base64 }, prediction.checkinPrompt),
+      generateCheckinPhoto({ mediaType, base64 }, fullEditPrompt),
       45_000,
       "Hugging Face tạo ảnh quá lâu (>45s)"
     );
@@ -148,6 +152,14 @@ export async function POST(req: NextRequest) {
 }
 
 // --- Prompt helpers ---
+
+/**
+ * Style cố định cho MỌI ảnh check-in - không photorealistic, mà là digital
+ * illustration/poster art (giữ đường nét đặc điểm gốc nhưng vẽ lại theo phong
+ * cách nghệ thuật số), tương tự banner "Ms Moon" của quán.
+ */
+const STYLE_SUFFIX =
+  "redrawn as polished digital illustration / concept-art poster style, NOT photorealistic, clean stylized linework, vivid painterly rendering, dramatic cinematic lighting, glossy premium illustration finish, preserve the person's facial features and likeness in the illustrated style";
 
 function formatHistory(quizHistory: QAPair[]): string {
   return quizHistory
@@ -175,6 +187,6 @@ CHỈ trả lời bằng JSON hợp lệ, không thêm chữ nào khác, không 
 {
   "careerName": "Tên nghề nghiệp dự đoán, ngắn gọn sáng tạo, tiếng Việt",
   "explanation": "2-3 câu giải thích vì sao hợp với vibe/tính cách này, tiếng Việt, văn xuôi thường không markdown",
-  "checkinPrompt": "Mô tả bằng tiếng Anh cho việc CHỈNH SỬA ảnh gốc thành một tấm ảnh check-in nghệ thuật. YÊU CẦU BẮT BUỘC: giữ nguyên gương mặt và đặc điểm nhận diện của người trong ảnh gốc, chỉ thay đổi/thêm bối cảnh xung quanh. Bối cảnh phải kết hợp: (1) yếu tố tượng trưng cho nghề nghiệp vừa dự đoán, và (2) không khí đặc trưng Đà Lạt (thông reo, sương mù nhẹ, ánh nắng vàng ấm buổi sáng, hoa dã quỳ vàng, đồi núi mờ sương, mái ngói đỏ). Phong cách ảnh: chân thực nhưng có chút mơ mộng (dreamy), tông màu ấm."
+  "checkinPrompt": "Mô tả bằng tiếng Anh cho việc CHỈNH SỬA ảnh gốc thành một tấm ảnh check-in. YÊU CẦU BẮT BUỘC: giữ nguyên bố cục gương mặt và đặc điểm nhận diện của người trong ảnh gốc, chỉ thay đổi/thêm bối cảnh xung quanh. Bối cảnh phải kết hợp: (1) yếu tố tượng trưng cho nghề nghiệp vừa dự đoán, và (2) không khí đặc trưng Đà Lạt (thông reo, sương mù nhẹ, ánh nắng vàng ấm buổi sáng, hoa dã quỳ vàng, đồi núi mờ sương, mái ngói đỏ). CHỈ mô tả NỘI DUNG bối cảnh, KHÔNG cần mô tả phong cách vẽ/chất liệu ảnh (phần đó đã được xử lý riêng)."
 }`;
 }
