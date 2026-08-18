@@ -23,6 +23,7 @@ export default function QuizChat({
     null
   );
   const [loading, setLoading] = useState(true);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fetchedForRef = useRef(-1);
 
@@ -49,22 +50,34 @@ export default function QuizChat({
   }, []);
 
   useEffect(() => {
-    // Chỉ fetch khi số câu đã trả lời thay đổi và chưa fetch cho mốc này
+    // Chỉ fetch khi số câu đã trả lời thay đổi và chưa fetch cho mốc này.
+    // Trường hợp đã đủ câu hỏi được xử lý trực tiếp trong handleAnswer (có delay xác nhận),
+    // không xử lý ở đây nữa để tránh gọi onComplete 2 lần.
     if (fetchedForRef.current === history.length) return;
     fetchedForRef.current = history.length;
 
-    if (history.length >= totalQuestions) {
-      onComplete(history);
-      return;
-    }
+    if (history.length >= totalQuestions) return;
     fetchNextQuestion(history);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [history, totalQuestions]);
 
   function handleAnswer(option: string) {
     if (!current) return;
-    setHistory((prev) => [...prev, { question: current.question, answer: option }]);
+    const newHistory = [...history, { question: current.question, answer: option }];
     setCurrent(null);
+
+    if (newHistory.length >= totalQuestions) {
+      // Câu cuối: hiện xác nhận ~1s trước khi chuyển bước, để người dùng thấy
+      // rõ câu trả lời đã được ghi nhận thay vì chuyển màn hình đột ngột.
+      fetchedForRef.current = newHistory.length;
+      setHistory(newHistory);
+      setConfirming(true);
+      setTimeout(() => {
+        onComplete(newHistory);
+      }, 1000);
+    } else {
+      setHistory(newHistory);
+    }
   }
 
   const progress = Math.min(history.length, totalQuestions);
@@ -82,14 +95,32 @@ export default function QuizChat({
         ))}
       </div>
 
-      {loading && (
+      {confirming && (
+        <div className="flex flex-col items-center gap-3 py-10">
+          <div className="w-10 h-10 rounded-full bg-amber-400/20 border border-amber-400/50 flex items-center justify-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              className="w-5 h-5 text-amber-300"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+          </div>
+          <p className="text-amber-300 text-sm">Đã ghi nhận câu trả lời của bạn!</p>
+        </div>
+      )}
+
+      {!confirming && loading && (
         <div className="flex flex-col items-center gap-3 py-10">
           <div className="w-6 h-6 border-2 border-amber-300 border-t-transparent rounded-full animate-spin" />
           <p className="text-amber-300 text-sm">Đang nghĩ câu hỏi tiếp theo...</p>
         </div>
       )}
 
-      {error && (
+      {!confirming && error && (
         <div className="flex flex-col items-center gap-3 py-6">
           <p className="text-red-400 text-sm text-center">{error}</p>
           <button
@@ -101,7 +132,7 @@ export default function QuizChat({
         </div>
       )}
 
-      {!loading && !error && current && (
+      {!confirming && !loading && !error && current && (
         <div className="flex flex-col gap-4">
           <p className="text-white text-lg font-medium leading-snug">
             {current.question}

@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
  * cách nghệ thuật số), tương tự banner "Ms Moon" của quán.
  */
 const STYLE_SUFFIX =
-  "redrawn as polished digital illustration / concept-art poster style, NOT photorealistic, clean stylized linework, vivid painterly rendering, dramatic cinematic lighting, glossy premium illustration finish, preserve the person's facial features and likeness in the illustrated style";
+  "STYLE: hand-painted digital illustration character art, like a stylized poster/album-cover illustration - absolutely NOT a photograph, NOT photorealistic. Smooth painterly/cel-shaded skin with NO visible skin pores, NO photographic skin texture, NO photo grain. Clean illustrated linework, vivid saturated colors, dramatic painterly lighting, glossy premium concept-art finish. Keep the same face shape, hairstyle and identity of the person but rendered entirely as illustrated artwork, the way an artist would paint a portrait of them - not as an edited photo.";
 
 function formatHistory(quizHistory: QAPair[]): string {
   return quizHistory
@@ -187,6 +187,6 @@ CHỈ trả lời bằng JSON hợp lệ, không thêm chữ nào khác, không 
 {
   "careerName": "Tên nghề nghiệp dự đoán, ngắn gọn sáng tạo, tiếng Việt",
   "explanation": "2-3 câu giải thích vì sao hợp với vibe/tính cách này, tiếng Việt, văn xuôi thường không markdown",
-  "checkinPrompt": "Mô tả bằng tiếng Anh cho việc CHỈNH SỬA ảnh gốc thành một tấm ảnh check-in. YÊU CẦU BẮT BUỘC: giữ nguyên bố cục gương mặt và đặc điểm nhận diện của người trong ảnh gốc, chỉ thay đổi/thêm bối cảnh xung quanh. Bối cảnh phải kết hợp: (1) yếu tố tượng trưng cho nghề nghiệp vừa dự đoán, và (2) không khí đặc trưng Đà Lạt (thông reo, sương mù nhẹ, ánh nắng vàng ấm buổi sáng, hoa dã quỳ vàng, đồi núi mờ sương, mái ngói đỏ). CHỈ mô tả NỘI DUNG bối cảnh, KHÔNG cần mô tả phong cách vẽ/chất liệu ảnh (phần đó đã được xử lý riêng)."
+  "checkinPrompt": "Mô tả bằng tiếng Anh cho việc CHỈNH SỬA ảnh gốc thành một tấm ảnh check-in. YÊU CẦU: giữ nguyên gương mặt/đầu và có thể nhận ra đúng là người trong ảnh gốc. ĐƯỢC PHÉP thay đổi: trang phục (đổi thành trang phục phù hợp với nghề nghiệp vừa dự đoán), tư thế/dáng đứng-ngồi (phù hợp với nghề đó), và toàn bộ bối cảnh xung quanh. Bối cảnh phải kết hợp: (1) đạo cụ/không gian tượng trưng cho nghề nghiệp vừa dự đoán, và (2) không khí đặc trưng Đà Lạt (thông reo, sương mù nhẹ, ánh nắng vàng ấm buổi sáng, hoa dã quỳ vàng, đồi núi mờ sương, mái ngói đỏ). CHỈ mô tả NỘI DUNG (trang phục, tư thế, đạo cụ, bối cảnh), KHÔNG cần mô tả phong cách vẽ/chất liệu ảnh (phần đó đã được xử lý riêng)."
 }`;
 }

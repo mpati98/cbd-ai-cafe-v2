@@ -34,6 +34,9 @@ export async function generateCheckinPhoto(
     inputs: inputBlob,
     parameters: {
       prompt: editPrompt,
+      // Guidance mặc định của Kontext-dev (~2.5) thường vẫn giữ da/kết cấu như ảnh thật.
+      // Tăng lên để model bám sát yêu cầu "vẽ lại theo phong cách illustration" mạnh hơn.
+      guidance_scale: 4.5,
     },
   });
 
