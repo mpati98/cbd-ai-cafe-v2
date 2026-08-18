@@ -29,23 +29,49 @@ export default function CareerPredictionPageExample() {
   async function handlePhotoCaptured(dataUrl: string) {
     setLoading(true);
     setError(null);
+
+    const sizeKb = Math.round((dataUrl.length * 0.75) / 1024); // ước lượng KB thật từ base64
+    const startedAt = Date.now();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 55_000);
+
     try {
       const res = await fetch("/api/career-prediction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ photoDataUrl: dataUrl, quizHistory }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
+
+      const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Có lỗi xảy ra.");
+        throw new Error(
+          `${data.error || "Có lỗi xảy ra."} [HTTP ${res.status}, ảnh ~${sizeKb}KB, ${elapsedSec}s]`
+        );
       }
 
       const data = (await res.json()) as Result;
       setResult(data);
       setStep("result");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Có lỗi xảy ra.");
+      clearTimeout(timeoutId);
+      const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
+
+      if (e instanceof DOMException && e.name === "AbortError") {
+        setError(
+          `Quá thời gian chờ (>55s) - có thể do mạng yếu hoặc ảnh quá nặng. [ảnh ~${sizeKb}KB, ${elapsedSec}s]`
+        );
+      } else {
+        const msg = e instanceof Error ? e.message : String(e);
+        setError(
+          msg.includes("[HTTP")
+            ? msg
+            : `${msg} [ảnh ~${sizeKb}KB, ${elapsedSec}s, ${e instanceof Error ? e.name : "?"}]`
+        );
+      }
     } finally {
       setLoading(false);
     }
