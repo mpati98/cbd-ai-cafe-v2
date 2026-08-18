@@ -1,27 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { generateIllustration } from "@/lib/huggingface";
-// import { buildVibeReadingPrompt, buildCareerPredictionPrompt } from "@/lib/career-prediction-prompts";
+import { generateCheckinPhoto } from "@/lib/huggingface";
+import type { QAPair } from "@/app/api/quiz-chat/route";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-interface QuizAnswers {
-  [question: string]: string;
-}
-
 interface RequestBody {
   /** data URL dạng "data:image/jpeg;base64,...." lấy từ PhotoCapture, chỉ dùng trong request này rồi bỏ */
   photoDataUrl: string;
-  quizAnswers: QuizAnswers;
+  /** Lịch sử hỏi-đáp tính cách từ QuizChat (5-7 câu) */
+  quizHistory: QAPair[];
 }
 
 interface CareerPrediction {
   careerName: string;
   explanation: string;
-  imagePrompt: string;
+  /** Mô tả cảnh chỉnh sửa ảnh: giữ người trong ảnh gốc + thêm bối cảnh nghề nghiệp + vibe Đà Lạt */
+  checkinPrompt: string;
 }
 
 function parseDataUrl(dataUrl: string): { mediaType: string; base64: string } | null {
@@ -30,27 +28,24 @@ function parseDataUrl(dataUrl: string): { mediaType: string; base64: string } | 
   return { mediaType: match[1], base64: match[2] };
 }
 
+function extractJson(text: string): unknown {
+  const cleaned = text.replace(/```json|```/g, "").trim();
+  return JSON.parse(cleaned);
+}
+
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return Promise.race([
     promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(message)), ms)
-    ),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
   ]);
-}
-
-function extractJson(text: string): unknown {
-  // Phòng trường hợp model bọc JSON trong ```json ... ``` dù đã dặn không làm vậy
-  const cleaned = text.replace(/```json|```/g, "").trim();
-  return JSON.parse(cleaned);
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as RequestBody;
-    const { photoDataUrl, quizAnswers } = body;
+    const { photoDataUrl, quizHistory } = body;
 
-    if (!photoDataUrl || !quizAnswers) {
+    if (!photoDataUrl || !quizHistory || quizHistory.length === 0) {
       return NextResponse.json(
         { error: "Thiếu ảnh hoặc câu trả lời quiz." },
         { status: 400 }
@@ -68,7 +63,6 @@ export async function POST(req: NextRequest) {
     }
 
     // ---- Bước 1: Claude Haiku vision đọc "vibe" từ ảnh ----
-    // Ảnh chỉ được gửi trong request này, không ghi ra disk/DB ở đâu cả.
     console.log("[career-prediction] bước 1: gọi Claude vibe reading...");
     const vibeResponse = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
@@ -89,7 +83,7 @@ export async function POST(req: NextRequest) {
                 data: base64,
               },
             },
-            { type: "text", text: buildVibeReadingPrompt(quizAnswers) },
+            { type: "text", text: buildVibeReadingPrompt(quizHistory) },
           ],
         },
       ],
@@ -102,13 +96,13 @@ export async function POST(req: NextRequest) {
       .trim();
     console.log("[career-prediction] bước 1 xong, vibe:", vibeText.slice(0, 80));
 
-    // ---- Bước 2: Dự đoán nghề nghiệp - bắt model trả JSON để dễ hiển thị + lấy prompt tạo ảnh ----
+    // ---- Bước 2: Dự đoán nghề nghiệp + mô tả cảnh check-in (career + Đà Lạt) ----
     console.log("[career-prediction] bước 2: gọi Claude career prediction...");
     const predictionResponse = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 600,
+      max_tokens: 700,
       messages: [
-        { role: "user", content: buildCareerPredictionPrompt(vibeText, quizAnswers) },
+        { role: "user", content: buildCareerPredictionPrompt(vibeText, quizHistory) },
       ],
     });
 
@@ -127,21 +121,16 @@ export async function POST(req: NextRequest) {
         { status: 502 }
       );
     }
-
     console.log("[career-prediction] bước 2 xong, career:", prediction.careerName);
 
-    // ---- Bước 3: Tạo ảnh minh hoạ biểu tượng bằng Flux Schnell ----
-    // Giới hạn thời gian chờ HF để không bao giờ treo vô thời hạn - nếu quá 45s
-    // (thường do model đang "cold start" ở provider) thì báo lỗi rõ ràng thay vì kẹt spinner mãi.
-    console.log("[career-prediction] bước 3: gọi Hugging Face tạo ảnh...");
+    // ---- Bước 3: Tạo ảnh check-in (image-to-image, giữ nét ảnh gốc) ----
+    console.log("[career-prediction] bước 3: gọi Hugging Face tạo ảnh check-in...");
     const imageUrl = await withTimeout(
-      generateIllustration(prediction.imagePrompt),
+      generateCheckinPhoto({ mediaType, base64 }, prediction.checkinPrompt),
       45_000,
       "Hugging Face tạo ảnh quá lâu (>45s)"
     );
     console.log("[career-prediction] bước 3 xong, ảnh dài (base64 chars):", imageUrl.length);
-
-    // Ảnh gốc (base64, mediaType) không được tham chiếu gì thêm sau điểm này.
 
     return NextResponse.json({
       vibe: vibeText,
@@ -158,39 +147,34 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// --- Prompt helpers (thay bằng import từ lib/career-prediction-prompts.ts nếu đã có) ---
+// --- Prompt helpers ---
 
-function buildVibeReadingPrompt(quizAnswers: QuizAnswers): string {
-  const answersText = Object.entries(quizAnswers)
-    .map(([q, a]) => `- ${q}: ${a}`)
+function formatHistory(quizHistory: QAPair[]): string {
+  return quizHistory
+    .map((qa, i) => `${i + 1}. ${qa.question} → ${qa.answer}`)
     .join("\n");
+}
 
+function buildVibeReadingPrompt(quizHistory: QAPair[]): string {
   return `Bạn là một AI "đọc vibe" vui nhộn tại CBD AI Cafe, Đà Lạt. Nhìn vào ảnh và mô tả năng lượng/phong cách/vibe tổng thể của người trong ảnh một cách tích cực, sáng tạo (2-3 câu, tiếng Việt, không dùng markdown). Không mô tả chi tiết đặc điểm khuôn mặt, chỉ tập trung vào "vibe".
 
 Kết hợp với câu trả lời quiz tính cách sau:
-${answersText}`;
+${formatHistory(quizHistory)}`;
 }
 
-function buildCareerPredictionPrompt(
-  vibeText: string,
-  quizAnswers: QuizAnswers
-): string {
-  const answersText = Object.entries(quizAnswers)
-    .map(([q, a]) => `- ${q}: ${a}`)
-    .join("\n");
-
-  return `Dựa trên vibe reading và câu trả lời quiz dưới đây, đưa ra MỘT dự đoán nghề nghiệp vui, sáng tạo, mang tính giải trí cho khách tại CBD AI Cafe.
+function buildCareerPredictionPrompt(vibeText: string, quizHistory: QAPair[]): string {
+  return `Dựa trên vibe reading và câu trả lời quiz dưới đây, đưa ra MỘT dự đoán nghề nghiệp vui, sáng tạo, mang tính giải trí cho khách tại CBD AI Cafe, Đà Lạt.
 
 Vibe reading:
 ${vibeText}
 
-Câu trả lời quiz:
-${answersText}
+Câu trả lời quiz tính cách:
+${formatHistory(quizHistory)}
 
 CHỈ trả lời bằng JSON hợp lệ, không thêm chữ nào khác, không markdown, không dấu \`\`\`, đúng format sau:
 {
   "careerName": "Tên nghề nghiệp dự đoán, ngắn gọn sáng tạo, tiếng Việt",
   "explanation": "2-3 câu giải thích vì sao hợp với vibe/tính cách này, tiếng Việt, văn xuôi thường không markdown",
-  "imagePrompt": "Mô tả bằng tiếng Anh cho một ảnh minh hoạ mang tính biểu tượng (symbolic) cho nghề này - mô tả biểu tượng/bối cảnh/vật thể, KHÔNG mô tả khuôn mặt hay hình dáng người"
+  "checkinPrompt": "Mô tả bằng tiếng Anh cho việc CHỈNH SỬA ảnh gốc thành một tấm ảnh check-in nghệ thuật. YÊU CẦU BẮT BUỘC: giữ nguyên gương mặt và đặc điểm nhận diện của người trong ảnh gốc, chỉ thay đổi/thêm bối cảnh xung quanh. Bối cảnh phải kết hợp: (1) yếu tố tượng trưng cho nghề nghiệp vừa dự đoán, và (2) không khí đặc trưng Đà Lạt (thông reo, sương mù nhẹ, ánh nắng vàng ấm buổi sáng, hoa dã quỳ vàng, đồi núi mờ sương, mái ngói đỏ). Phong cách ảnh: chân thực nhưng có chút mơ mộng (dreamy), tông màu ấm."
 }`;
 }
