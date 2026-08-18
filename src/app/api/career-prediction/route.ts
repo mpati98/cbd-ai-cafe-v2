@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { generateCheckinPhoto } from "@/lib/huggingface";
+import { generateCheckinPhoto } from "@/lib/gemini";
 import type { QAPair } from "@/app/api/quiz-chat/route";
 
 export const runtime = "nodejs";
@@ -128,11 +128,11 @@ export async function POST(req: NextRequest) {
     // illustration/poster art, KHÔNG photorealistic - giữ đường nét/đặc điểm gốc
     // nhưng vẽ lại theo phong cách digital art như banner Ms Moon của quán.
     const fullEditPrompt = `${prediction.checkinPrompt}, ${STYLE_SUFFIX}`;
-    console.log("[career-prediction] bước 3: gọi Hugging Face tạo ảnh check-in...");
+    console.log("[career-prediction] bước 3: gọi Gemini tạo ảnh check-in...");
     const imageUrl = await withTimeout(
       generateCheckinPhoto({ mediaType, base64 }, fullEditPrompt),
       45_000,
-      "Hugging Face tạo ảnh quá lâu (>45s)"
+      "Gemini tạo ảnh quá lâu (>45s)"
     );
     console.log("[career-prediction] bước 3 xong, ảnh dài (base64 chars):", imageUrl.length);
 
