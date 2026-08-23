@@ -136,7 +136,7 @@ export default function MediaLibraryPanel() {
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder='vd: "Hero slide 1 — cận cảnh hạt cà phê rang" hoặc "Ảnh món Cold Brew Tầng Mây"'
+            placeholder='vd: "Hero slide 1 — cận cảnh hạt cà phê rang" hoặc "Ảnh món Bạc Xỉu Lang Biang"'
             rows={2}
             className="w-full rounded-lg border border-latte-700 bg-latte-800 px-3 py-2 text-sm text-latte-100 placeholder:text-latte-400 focus:border-orange-500/60"
           />
