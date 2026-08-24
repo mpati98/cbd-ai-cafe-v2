@@ -24,6 +24,49 @@ function extFromMime(mime: string): string {
   return "webm";
 }
 
+// Whisper (mọi biến thể, kể cả whisper-large-v3 trên Groq) có xu hướng "bịa"
+// (hallucinate) 1 câu MẶC ĐỊNH nghe rất tự nhiên khi âm thanh đưa vào không
+// có lời nói rõ ràng (im lặng / chỉ có tiếng ồn nền quán cà phê) — hệ quả của
+// việc model được train nhiều trên phụ đề YouTube tự động, nên hay "nhớ nhầm"
+// ra các câu outro kiểu "cảm ơn đã xem, nhớ đăng ký kênh". Test trực tiếp với
+// Groq API bằng audio im lặng/nhiễu nền thực tế đã tái hiện đúng lỗi khách báo
+// ("ra chữ hoàn toàn không liên quan"): ra "Hãy subscribe cho kênh La La
+// School..." hoặc "Cảm ơn các bạn đã theo dõi và hẹn gặp lại." — không phải do
+// hint/prompt hay do route parse sai, mà là hallucination kinh điển của
+// Whisper trên audio không có giọng nói thật. avg_logprob KHÔNG phân biệt được
+// (model "tự tin" vào câu bịa này) nên chỉ lọc theo no_speech_prob là chưa đủ
+// — cần thêm danh sách cụm từ hallucination phổ biến để chặn thẳng.
+const HALLUCINATION_PATTERN =
+  /subscribe|đăng\s*k[yý]\s*k[êe]nh|theo\s*d[õo]i\s*k[êe]nh|h[ẹe]n\s*g[ặa]p\s*l[ạa]i|(đ[ừu]ng\s*qu[êe]n\s*)?like[\s,]*(và\s*)?share|b[ỏo]\s*l[ỡơ].*video|c[ảa]m\s*[ơo]n.*(đ[ãa]\s*xem|đ[ãa]\s*theo\s*d[õo]i|qu[ýy]\s*v[ịi])|ph[ụu]\s*đ[ềe]|amara\.org|ghi[ềe]n\s*m[ìi]\s*g[õo]/i;
+// Ngưỡng theo mặc định của chính OpenAI Whisper CLI (no_speech_threshold=0.6,
+// logprob_threshold=-1.0, compression_ratio_threshold=2.4) — giữ nguyên vì đó
+// là bộ ngưỡng đã được kiểm chứng rộng rãi, không tự đặt số tuỳ tiện.
+const NO_SPEECH_THRESHOLD = 0.6;
+const LOGPROB_THRESHOLD = -1.0;
+const COMPRESSION_RATIO_THRESHOLD = 2.4;
+
+type GroqSegment = { avg_logprob?: number; no_speech_prob?: number; compression_ratio?: number };
+type GroqTranscription = { text?: string; segments?: GroqSegment[] };
+
+/** true nếu nhiều khả năng là hallucination (không có lời nói thật trong audio) — nên coi như "chưa nghe rõ". */
+function looksLikeHallucination(data: GroqTranscription, text: string): boolean {
+  if (HALLUCINATION_PATTERN.test(text)) return true;
+  const segments = data.segments ?? [];
+  if (!segments.length) return false;
+  // Nhiều segment (câu dài) — chỉ cần 1 đoạn rõ ràng "không phải giọng nói"
+  // theo NGƯỠNG CỦA CHÍNH GROQ thì coi cả câu là đáng ngờ, tránh lẫn rác vào đơn.
+  return segments.some((s) => {
+    const noSpeech = s.no_speech_prob ?? 0;
+    const logprob = s.avg_logprob ?? 0;
+    const compressionRatio = s.compression_ratio ?? 0;
+    return (
+      noSpeech > NO_SPEECH_THRESHOLD ||
+      logprob < LOGPROB_THRESHOLD ||
+      compressionRatio > COMPRESSION_RATIO_THRESHOLD
+    );
+  });
+}
+
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
   if (isRateLimited("voice", ip, WINDOW_MS, MAX_REQ_PER_WINDOW)) {
@@ -73,6 +116,9 @@ export async function POST(req: NextRequest) {
   groqForm.append("file", new File([audio], `order.${extFromMime(mime)}`, { type: mime }));
   groqForm.append("model", GROQ_MODEL);
   groqForm.append("language", "vi");
+  // verbose_json trả kèm no_speech_prob/avg_logprob/compression_ratio theo
+  // từng đoạn — cần để lọc hallucination, xem looksLikeHallucination() ở trên.
+  groqForm.append("response_format", "verbose_json");
   if (hint) {
     // Whisper dùng prompt như "từ điển" ngữ cảnh (giới hạn ~224 token) — cắt bớt cho an toàn
     groqForm.append("prompt", hint.slice(0, 800));
@@ -94,10 +140,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const data = (await res.json()) as { text?: string };
+    const data = (await res.json()) as GroqTranscription;
     const text = (data.text ?? "").trim();
 
-    if (!text) {
+    if (!text || looksLikeHallucination(data, text)) {
       return NextResponse.json(
         { error: "Mình chưa nghe rõ, bạn nói lại giúp mình nhé." },
         { status: 422 }
