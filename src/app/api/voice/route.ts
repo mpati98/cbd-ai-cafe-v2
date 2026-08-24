@@ -28,16 +28,20 @@ function extFromMime(mime: string): string {
 // (hallucinate) 1 câu MẶC ĐỊNH nghe rất tự nhiên khi âm thanh đưa vào không
 // có lời nói rõ ràng (im lặng / chỉ có tiếng ồn nền quán cà phê) — hệ quả của
 // việc model được train nhiều trên phụ đề YouTube tự động, nên hay "nhớ nhầm"
-// ra các câu outro kiểu "cảm ơn đã xem, nhớ đăng ký kênh". Test trực tiếp với
-// Groq API bằng audio im lặng/nhiễu nền thực tế đã tái hiện đúng lỗi khách báo
-// ("ra chữ hoàn toàn không liên quan"): ra "Hãy subscribe cho kênh La La
-// School..." hoặc "Cảm ơn các bạn đã theo dõi và hẹn gặp lại." — không phải do
+// ra các câu intro/outro kiểu video. Test trực tiếp với Groq API bằng audio
+// im lặng/nhiễu nền thực tế đã tái hiện đúng lỗi khách báo ("ra chữ hoàn toàn
+// không liên quan"): ra "Hãy subscribe cho kênh La La School...", "Cảm ơn các
+// bạn đã theo dõi và hẹn gặp lại.", và trên chính audio thật của khách (câu
+// ngắn "cho 1 cà phê sữa") ra "Chào bạn đến với kênh youtube của mình" — biến
+// thể INTRO chứ không chỉ outro, ban đầu chặn thiếu case này. Không phải do
 // hint/prompt hay do route parse sai, mà là hallucination kinh điển của
-// Whisper trên audio không có giọng nói thật. avg_logprob KHÔNG phân biệt được
-// (model "tự tin" vào câu bịa này) nên chỉ lọc theo no_speech_prob là chưa đủ
-// — cần thêm danh sách cụm từ hallucination phổ biến để chặn thẳng.
+// Whisper. avg_logprob KHÔNG phân biệt được (model "tự tin" vào câu bịa này)
+// nên chỉ lọc theo no_speech_prob là chưa đủ — cần danh sách cụm từ phổ biến.
+// Chặn rộng theo TỪ KHOÁ gốc (kênh/youtube/video...) thay vì chỉ khớp nguyên
+// cụm cố định — khách gọi món ở CBD AI Cafe không có lý do gì nói tới các từ
+// này, nên rủi ro chặn nhầm câu gọi món thật gần như không có.
 const HALLUCINATION_PATTERN =
-  /subscribe|đăng\s*k[yý]\s*k[êe]nh|theo\s*d[õo]i\s*k[êe]nh|h[ẹe]n\s*g[ặa]p\s*l[ạa]i|(đ[ừu]ng\s*qu[êe]n\s*)?like[\s,]*(và\s*)?share|b[ỏo]\s*l[ỡơ].*video|c[ảa]m\s*[ơo]n.*(đ[ãa]\s*xem|đ[ãa]\s*theo\s*d[õo]i|qu[ýy]\s*v[ịi])|ph[ụu]\s*đ[ềe]|amara\.org|ghi[ềe]n\s*m[ìi]\s*g[õo]/i;
+  /\bk[êe]nh\b|\byoutube\b|\bsubscribe\b|đăng\s*k[yý]|theo\s*d[õo]i|h[ẹe]n\s*g[ặa]p\s*l[ạa]i|like[\s,]*(và\s*)?share|b[ìi]nh\s*lu[ậa]n|\bcomment\b|ph[ụu]\s*đ[ềe]|amara\.org|ghi[ềe]n\s*m[ìi]\s*g[õo]/i;
 // Ngưỡng theo mặc định của chính OpenAI Whisper CLI (no_speech_threshold=0.6,
 // logprob_threshold=-1.0, compression_ratio_threshold=2.4) — giữ nguyên vì đó
 // là bộ ngưỡng đã được kiểm chứng rộng rãi, không tự đặt số tuỳ tiện.
