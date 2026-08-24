@@ -13,7 +13,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "dev:all": "concurrently -n whisper,tts,next -c blue,magenta,green \"cd whisper-server && .venv/bin/uvicorn server:app --host 0.0.0.0 --port 8008\" \"cd tts-server && .venv/bin/uvicorn server:app --host 0.0.0.0 --port 8009\" \"next dev\""
+    "dev:all": "concurrently -n tts,next -c magenta,green \"cd tts-server && .venv/bin/uvicorn server:app --host 0.0.0.0 --port 8009\" \"next dev\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.1",

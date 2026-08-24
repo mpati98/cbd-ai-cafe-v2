@@ -4,9 +4,12 @@ import { clientIp, isRateLimited } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// faster-whisper chạy local (xem whisper-server/) — model load 1 lần, giữ warm.
-const WHISPER_SERVER_URL =
-  process.env.WHISPER_SERVER_URL ?? "http://127.0.0.1:8008/transcribe";
+// STT qua Groq API (whisper-large-v3) — trước đây forward sang whisper-server
+// chạy local trên máy dev, nhưng production chạy trên Vercel nên 127.0.0.1
+// không trỏ tới đâu cả (voice order lỗi "kết nối" trên mọi máy khi deploy).
+// Groq host model, không cần máy dev bật — hoạt động giống nhau ở mọi môi trường.
+const GROQ_TRANSCRIBE_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
+const GROQ_MODEL = "whisper-large-v3";
 const MAX_AUDIO_BYTES = 5 * 1024 * 1024; // 5MB ~ dư sức cho 1 câu order
 
 const WINDOW_MS = 60_000;
@@ -57,26 +60,34 @@ export async function POST(req: NextRequest) {
   // Gợi ý ngữ cảnh: tên món trong menu giúp Whisper nhận đúng "Cold Brew", "Latte"...
   const hint = typeof form.get("hint") === "string" ? (form.get("hint") as string) : "";
 
-  const whisperForm = new FormData();
+  if (!process.env.GROQ_API_KEY) {
+    console.error("[/api/voice] Thiếu GROQ_API_KEY trong biến môi trường.");
+    return NextResponse.json(
+      { error: "Tính năng giọng nói chưa được cấu hình, bạn gõ tin nhắn giúp mình nhé." },
+      { status: 503 }
+    );
+  }
+
+  const groqForm = new FormData();
   const mime = audio.type || "audio/webm";
-  whisperForm.append(
-    "audio",
-    new File([audio], `order.${extFromMime(mime)}`, { type: mime })
-  );
+  groqForm.append("file", new File([audio], `order.${extFromMime(mime)}`, { type: mime }));
+  groqForm.append("model", GROQ_MODEL);
+  groqForm.append("language", "vi");
   if (hint) {
-    // faster-whisper dùng prompt như "từ điển" ngữ cảnh — cắt bớt cho an toàn
-    whisperForm.append("hint", hint.slice(0, 800));
+    // Whisper dùng prompt như "từ điển" ngữ cảnh (giới hạn ~224 token) — cắt bớt cho an toàn
+    groqForm.append("prompt", hint.slice(0, 800));
   }
 
   try {
-    const res = await fetch(WHISPER_SERVER_URL, {
+    const res = await fetch(GROQ_TRANSCRIBE_URL, {
       method: "POST",
-      body: whisperForm,
+      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
+      body: groqForm,
     });
 
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      console.error("[/api/voice] whisper-server error", res.status, detail);
+      console.error("[/api/voice] Groq STT error", res.status, detail);
       return NextResponse.json(
         { error: "Không xử lý được giọng nói lúc này, bạn có thể gõ tin nhắn nhé." },
         { status: 502 }
