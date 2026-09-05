@@ -60,15 +60,6 @@ export default function Nav() {
               </a>
             </li>
           ))}
-          <li>
-            <a
-              href="/order"
-              onClick={() => setOpen(false)}
-              className="inline-block rounded-full bg-gradient-to-br from-orange-500 to-orange-600 px-5 py-2 text-sm font-bold text-latte-950 shadow-neon-orange-sm transition-shadow hover:shadow-neon-orange"
-            >
-              Đặt món
-            </a>
-          </li>
         </ul>
 
         <button
