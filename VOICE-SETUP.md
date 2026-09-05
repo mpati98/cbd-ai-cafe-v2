@@ -1,85 +1,51 @@
-# Voice Order — Groq Whisper API (STT) + VieNeu-TTS local (đọc to)
+# Voice Order — Gemini (STT + TTS)
 
-Module đặt món bằng giọng nói + đọc to câu trả lời cho trang `/order`.
+Module đặt món bằng giọng nói + đọc to câu trả lời cho trang `/order`. Cả
+nhận diện giọng nói (STT) và đọc to (TTS) đều chạy qua Gemini API — không cần
+server riêng nào, hoạt động giống nhau ở local dev lẫn Vercel production.
 
-**STT (nhận diện giọng nói) chạy qua Groq API** (`whisper-large-v3`) — production
-deploy trên Vercel, không có máy nào luôn bật để chạy model local, nên STT
-phải là 1 dịch vụ cloud có sẵn (trước đây dùng faster-whisper chạy local trên
-máy dev qua `whisper-server/`, nhưng route đó gọi `127.0.0.1:8008` nên chỉ
-chạy được khi Next.js server và whisper-server chung 1 máy — không hoạt động
-trên Vercel, xem lịch sử đổi ở `src/app/api/voice/route.ts`). `whisper-server/`
-vẫn còn trong repo để tham khảo/thử nghiệm local nếu cần nhưng không còn được
-gọi bởi app.
+**STT (nhận diện giọng nói)** dùng `gemini-3.6-flash` (xem `src/lib/gemini.ts`
+hàm `transcribeAudio`). Lịch sử: bản đầu dùng **faster-whisper chạy local**
+(`whisper-server/`, đã xoá khỏi repo) — chỉ chạy được khi Next.js server và
+whisper-server chung 1 máy, không hoạt động trên Vercel. Đổi sang **Groq API
+(whisper-large-v3)** để chạy được trên Vercel, nhưng Whisper (mọi biến thể)
+hay "bịa" (hallucinate) hẳn 1 câu không liên quan khi audio không có lời nói
+rõ ràng (im lặng/tiếng ồn quán) — hệ quả của việc train nhiều trên phụ đề
+YouTube tự động; chặn bằng blocklist từ khoá + ngưỡng no_speech_prob là chữa
+cháy, không triệt để. Đổi tiếp sang **Gemini** — test thực tế không lặp lại
+kiểu hallucination này trên audio im lặng/nhiễu nền, nhưng đổi lại có thể
+thỉnh thoảng nghe nhầm/nhầm món khi khách nói tên món mượn tiếng Anh (Latte,
+Cappuccino, Espresso...). Đây là đánh đổi đã biết và được chấp nhận — xem lịch
+sử đổi chi tiết trong `src/app/api/voice/route.ts` và `src/lib/gemini.ts`.
 
-**TTS (đọc to câu trả lời) vẫn chạy local** (VieNeu-TTS, không đổi) — vì đây
-là tính năng phụ (lỗi thì im lặng, không chặn luồng chính) nên chấp nhận được
-việc chỉ hoạt động khi dev/test local có `tts-server` chạy; sẽ cần tách ra
-tương tự nếu muốn bật đọc to trên production.
+**TTS (đọc to câu trả lời)** dùng `gemini-2.5-flash-preview-tts` (xem
+`src/lib/gemini.ts` hàm `synthesizeSpeech`) — trả về audio PCM thô, được bọc
+thành WAV trước khi trả cho client. Trước đây dùng **VieNeu-TTS chạy local**
+(`tts-server/`, đã xoá khỏi repo) — cùng vấn đề với STT bản đầu: route gọi
+`127.0.0.1:8009` chỉ hoạt động khi Next.js server và tts-server chung 1 máy,
+nên đọc to không hoạt động thật trên Vercel (lỗi âm thầm vì đây là tính năng
+phụ, không chặn luồng chính, nên không ai để ý cho tới khi kiểm tra kỹ).
 
 ```
-whisper-server/                    ← (không còn dùng ở production — xem ghi chú trên) FastAPI local STT, giữ lại để tham khảo
-tts-server/server.py               ← FastAPI local (TTS, VieNeu-TTS), CPU/ONNX, giữ warm
-tts-server/start.sh                ← script chạy server TTS
-tts-server/requirements.txt        ← dependencies Python (TTS)
-src/app/api/voice/route.ts         ← API route Next.js, forward audio sang Groq (whisper-large-v3)
-src/app/api/tts/route.ts           ← API route Next.js, forward text sang tts-server (local)
+src/app/api/voice/route.ts         ← API route Next.js, gọi Gemini transcribeAudio()
+src/app/api/tts/route.ts           ← API route Next.js, gọi Gemini synthesizeSpeech()
+src/lib/gemini.ts                  ← transcribeAudio() + synthesizeSpeech(), cả 2 đều gọi Gemini
 src/hooks/useVoiceInput.ts         ← Hook MediaRecorder (hydration-safe)
 src/components/VoiceMicButton.tsx  ← Nút mic theo brand CBD
 src/lib/speech.ts                  ← speak()/stopSpeaking() gọi /api/tts, phát qua <audio>
 ```
 
-## 0. STT — Groq API
+## 0. Cấu hình
 
-Cần biến môi trường `GROQ_API_KEY` (đã có sẵn trong `.env` cho dev; nhớ set
-tương ứng trong Vercel project settings cho production/preview). Không cần
-chạy gì thêm — route gọi thẳng `https://api.groq.com/openai/v1/audio/transcriptions`
-với `model=whisper-large-v3`, `language=vi`, và `prompt` = tên món trong menu
-(giúp nhận đúng "Cold Brew", "Latte"...). Hoạt động giống nhau ở mọi môi
-trường (local dev lẫn Vercel production), không phụ thuộc máy nào đang bật.
+Chỉ cần biến môi trường `GEMINI_API_KEY` (dùng chung với tính năng tạo ảnh
+check-in — xem `generateCheckinPhoto` trong `src/lib/gemini.ts` — nên đã có
+sẵn trong `.env`; nhớ set tương ứng trong Vercel project settings cho
+production/preview). Không cần cài đặt hay chạy server nào khác — cả STT lẫn
+TTS đều gọi thẳng Gemini API qua SDK `@google/genai`. Thiếu key thì nút mic
+vẫn hiện (ghi âm được) nhưng bấm gửi/đọc to sẽ báo lỗi thân thiện, không
+crash trang.
 
-## 1. Cài đặt (một lần)
-
-STT (Groq) không cần cài gì — chỉ cần `GROQ_API_KEY` trong `.env`/Vercel env.
-
-TTS (VieNeu-TTS, local) vẫn cần Python 3.11+ với module `venv`:
-
-```bash
-cd tts-server
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-```
-
-VieNeu-TTS chạy **CPU/ONNX (int8)** theo mặc định — không cần GPU. Model
-(~vài trăm MB) tự tải từ Hugging Face vào `~/.cache/huggingface` khi server
-khởi động lần đầu.
-
-## 2. Chạy server
-
-```bash
-npm run tts:server      # TTS — VieNeu-TTS, cổng 8009 (chỉ cần cho tính năng đọc to)
-```
-
-Kiểm tra:
-
-```bash
-curl http://127.0.0.1:8009/health
-# {"status":"ok","voice":"Trúc Ly"}
-```
-
-`npm run dev:all` đã tự chạy `tts:server` song song với `next dev`. STT (Groq)
-không cần server riêng nên không có bước "chạy" nào cho nó.
-
-### Tuỳ chỉnh (biến môi trường khi chạy start.sh)
-
-- `VIENEU_VOICE` — tên giọng đọc TTS (mặc định `Trúc Ly` — nữ, Bắc, tự nhiên).
-  Xem toàn bộ danh sách 14 giọng có sẵn (Bắc/Trung/Nam, nam/nữ) bằng:
-  `.venv/bin/python -c "from vieneu import Vieneu; print(Vieneu().list_preset_voices())"`
-
-Route Next.js đọc URL server TTS qua `TTS_SERVER_URL` trong `.env` (mặc định
-`http://127.0.0.1:8009/synthesize`, không cần set nếu chạy local mặc định).
-STT không có biến URL tương ứng nữa — luôn gọi Groq API.
-
-## 3. Gắn vào chatbot panel
+## 1. Gắn vào chatbot panel
 
 Trong component chatbot ở trang `/order`, đặt nút mic cạnh ô nhập tin nhắn và đẩy transcript vào **cùng hàm xử lý tin nhắn gõ tay** (pipeline scoring hiện tại giữ nguyên):
 
@@ -93,27 +59,31 @@ import VoiceMicButton from "@/components/VoiceMicButton";
 />
 ```
 
-`hintPhrases` rất quan trọng: tên món được truyền làm ngữ cảnh (initial prompt)
-cho Whisper, giúp nhận đúng các từ trộn Anh-Việt như "Cold Brew", "Latte", "Bạc Xỉu".
+`hintPhrases` rất quan trọng: tên món được truyền làm ngữ cảnh chính tả cho
+Gemini, giúp nhận đúng các từ trộn Anh-Việt như "Cold Brew", "Latte", "Bạc Xỉu".
 
-## 4. Hành vi
+## 2. Hành vi
 
 **Ghi âm (STT):**
 - Bấm mic → xin quyền micro → ghi âm (viền cam lan tỏa khi đang nghe)
 - Bấm lần nữa để dừng, hoặc tự dừng sau 12 giây
 - Transcript trả về → đi vào chatbot như tin nhắn gõ tay
 - Trình duyệt không hỗ trợ (hoặc chưa hydrate) → nút tự ẩn, không vỡ layout
-- Lỗi mạng / Groq API lỗi hoặc chưa cấu hình `GROQ_API_KEY` → hiện thông báo tiếng Việt phía trên nút
+- Lỗi mạng / Gemini API lỗi hoặc chưa cấu hình `GEMINI_API_KEY` → hiện thông báo tiếng Việt phía trên nút
+- Audio không có lời nói rõ ràng (im lặng/tiếng ồn) → Gemini tự báo không nghe
+  được, hiện "Mình chưa nghe rõ, bạn nói lại giúp mình nhé" thay vì bịa chữ
 
 **Đọc to (TTS):**
 - Nút 🔈/🔊 trên header ChatPanel bật/tắt đọc to — mặc định tắt
-- Khi bật, mỗi câu trả lời mới của bot tự phát qua VieNeu-TTS (giọng Việt tự
-  nhiên, không phải SpeechSynthesis của trình duyệt)
+- Khi bật, mỗi câu trả lời mới của bot tự phát qua Gemini TTS (giọng
+  `Kore` mặc định — đổi hằng số `TTS_VOICE` trong `src/lib/gemini.ts` nếu
+  nghe thử thấy giọng khác hợp CBD Robot hơn; các lựa chọn khác: Puck, Aoede,
+  Charon, Fenrir...)
 - Bấm mic để ghi âm khi đang đọc → tự ngắt câu đang đọc cho rõ tiếng
-- tts-server chưa chạy / lỗi mạng → im lặng, không đọc được (lỗi log ra console,
+- Lỗi mạng / Gemini API lỗi → im lặng, không đọc được (lỗi log ra console,
   không hiện gián đoạn UI vì đây là tính năng phụ, không phải luồng chính)
 
-## 5. Lưu ý kỹ thuật
+## 3. Lưu ý kỹ thuật
 
 - **HTTPS bắt buộc** với `getUserMedia` — `localhost` được miễn, nhưng khi
   deploy phải có SSL, và khi test qua LAN (vd điện thoại → máy dev) sẽ bị chặn
@@ -121,41 +91,25 @@ cho Whisper, giúp nhận đúng các từ trộn Anh-Việt như "Cold Brew", "
 - Safari/iOS ghi ra `audio/mp4` thay vì webm — route đã xử lý cả hai.
 - Rate limit trong route voice (12 req/phút/IP) và tts (20 req/phút/IP) là
   in-memory, đủ cho MVP một instance.
-- STT (Groq) hoạt động độc lập với máy dev — chạy được trên Vercel production.
-  TTS (`tts-server`) thì vẫn phải chạy trên **cùng máy** với Next.js server
-  (hoặc máy khác cùng mạng nội bộ + đổi `TTS_SERVER_URL`) — không expose ra
-  internet vì không có xác thực; trên production hiện tại (Vercel) nghĩa là
-  tính năng đọc to chỉ hoạt động khi test local, không hoạt động trên domain
-  thật cho tới khi tts-server cũng được tách ra tương tự STT.
-- VieNeu-TTS license **Apache 2.0** — dùng thoải mái cho sản phẩm thương mại
-  (khác với nhiều model TTS tiếng Việt khác như mms-tts-vie/CC-BY-NC hay
-  viXTTS/Coqui Public Model License, chỉ cho phép dùng phi thương mại).
+- Cả STT lẫn TTS đều hoạt động độc lập với máy dev — chạy được trên Vercel
+  production, không phụ thuộc máy nào đang bật, không cần expose port ra
+  internet như 2 kiến trúc local trước đây.
 
-## 6. Test nhanh
+## 4. Test nhanh
 
 ```bash
-npm run dev:all         # chạy tts:server + next dev cùng lúc
+npm run dev
 # Mở http://localhost:3000/order, bấm mic, nói:
 # "Cho mình một ly cold brew ít ngọt"
 # Bật nút 🔈 ở header chatbot để nghe bot đọc to câu trả lời
 ```
 
-Test route riêng (STT — gọi Groq API):
+Test route riêng (STT):
 
 ```bash
 curl -X POST http://localhost:3000/api/voice \
   -F "audio=@test.webm" \
   -F "hint=Cold Brew, Cà Phê Sữa Đá, Latte"
-```
-
-Test thẳng Groq API (bỏ qua Next.js):
-
-```bash
-curl -X POST https://api.groq.com/openai/v1/audio/transcriptions \
-  -H "Authorization: Bearer $GROQ_API_KEY" \
-  -F "file=@test.webm" \
-  -F "model=whisper-large-v3" \
-  -F "language=vi"
 ```
 
 Test route riêng (TTS) — lưu kết quả ra file để nghe thử:
@@ -165,10 +119,4 @@ curl -X POST http://localhost:3000/api/tts \
   -H "Content-Type: application/json" \
   -d '{"text":"Chào bạn! Mình là CBD Robot, bạn muốn uống gì hôm nay?"}' \
   -o reply.wav && open reply.wav   # hoặc xdg-open / aplay trên Linux
-```
-
-Test thẳng tts-server (bỏ qua Next.js):
-
-```bash
-curl -X POST http://127.0.0.1:8009/synthesize -F "text=Xin chào" -o test.wav
 ```

@@ -1,0 +1,308 @@
+// Prisma schema — CBD AI Cafe — CLOUD (dashboard + landing)
+// Database: Neon (Serverless Postgres). Dùng bởi apps/dashboard (đọc/ghi) và
+// apps/landing (chỉ đọc). apps/pos-local KHÔNG kết nối thẳng vào đây — mọi
+// trao đổi đi qua /api/sync/* (xem packages/shared-types/src/sync.ts).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma-cloud"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN // toàn quyền mọi tab, kể cả quản lý người dùng
+  STAFF // chỉ truy cập các tab được cấp trong `permissions`
+}
+
+/// Tài khoản đăng nhập dashboard. ADMIN luôn có toàn quyền (bỏ qua
+/// `permissions`); STAFF chỉ thấy/thao tác được các tab liệt kê trong
+/// `permissions` — xem danh sách hợp lệ ở apps/dashboard/src/lib/permissions.ts.
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         UserRole  @default(STAFF)
+  permissions  String[]  @default([])
+  sessions     Session[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("users")
+}
+
+/// Phiên đăng nhập — token ngẫu nhiên (không phải JWT) lưu trong cookie
+/// httpOnly, tra cứu thẳng vào bảng này mỗi request. Đăng xuất = xoá dòng này,
+/// nên thu hồi phiên tức thì, không cần hạ tầng blacklist riêng.
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("sessions")
+}
+
+/// 1 quán café vật lý chạy `apps/pos-local` riêng. `apiKeyHash` xác thực các
+/// cuộc gọi /api/sync/* từ pos-local (Bearer token, hash bằng bcrypt giống
+/// mật khẩu User — không lưu key dạng plaintext).
+model Store {
+  id               String    @id @default(cuid())
+  name             String
+  apiKeyHash       String
+  isActive         Boolean   @default(true)
+  lastHealthPingAt DateTime?
+  lastPendingSyncCount Int?
+  orders           Order[]
+  tables           Table[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("stores")
+}
+
+/// Template hệ thống cho order-chat, versioned để pos-local biết khi nào cần
+/// pull lại (xem ConfigSyncResponse.systemPrompt). Chỉ 1 dòng active tại 1
+/// thời điểm — ứng dụng luôn upsert id="singleton".
+model SystemPromptConfig {
+  id        String   @id @default("singleton")
+  version   Int      @default(1)
+  content   String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("system_prompt_config")
+}
+
+/// Đếm tăng dần mỗi khi menu/knowledge/system-prompt đổi — pos-local dùng để
+/// biết có cần pull config mới hay không (`GET /api/sync/config?since=`).
+model ConfigVersion {
+  id      String @id @default("singleton")
+  version Int    @default(0)
+
+  @@map("config_version")
+}
+
+enum MediaPurpose {
+  HERO // ảnh nền/minh hoạ cho 1 slide trong hero carousel — chuẩn hoá 1920x1080
+  MENU // ảnh minh hoạ cho 1 món trong thực đơn — chuẩn hoá 900x900
+}
+
+/// Ảnh đã được xử lý (resize + convert sang WebP) — lưu thẳng trong Postgres (Neon)
+/// để không cần thêm dịch vụ lưu trữ file ngoài. Phục vụ qua GET /api/images/:id
+/// (apps/dashboard) — cả apps/landing và apps/pos-local (qua cache-through) đều gọi endpoint này.
+model MediaAsset {
+  id        String       @id @default(cuid())
+  purpose   MediaPurpose
+  /// Ghi chú bắt buộc: ảnh này dùng cho phần nào (vd: "Hero slide 2 — Đà Lạt sương mù")
+  note      String
+  width     Int
+  height    Int
+  mimeType  String       @default("image/webp")
+  byteSize  Int
+  data      Bytes
+  createdAt DateTime     @default(now())
+
+  heroSlides HeroSlide[]
+  menuItems  MenuItem[]
+
+  @@map("media_assets")
+}
+
+/// One slide in the hero carousel ("story" section) — apps/landing only
+model HeroSlide {
+  id          String   @id @default(cuid())
+  order       Int      @default(0)
+  eyebrow     String
+  title       String
+  body        String
+  imageId     String?
+  image       MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("hero_slides")
+}
+
+/// A drink on the menu — catalog dùng chung mọi quán (chưa có menu/giá riêng
+/// theo từng Store). Đồng bộ xuống pos-local qua ConfigSyncResponse.menu.
+model MenuItem {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  description  String
+  priceVnd     Int      // price in VND, e.g. 59000
+  isBestSeller Boolean  @default(false)
+  order        Int      @default(0)
+  imageId      String?
+  image        MediaAsset? @relation(fields: [imageId], references: [id], onDelete: SetNull)
+  /// Tag dùng để order-chatbot gợi ý món theo câu trả lời của khách.
+  /// Giá trị hợp lệ: "dam" | "nhe" (đậm đà/nhẹ nhàng), "nong" | "lanh" (nóng/đá),
+  /// "trai-cay" | "truyen-thong" (trái cây/truyền thống) — xem packages/shared-types/src/tags.ts
+  tags         String[] @default([])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("menu_items")
+}
+
+/// A milestone on the product/company roadmap — apps/landing only
+model RoadmapItem {
+  id          String   @id @default(cuid())
+  period      String   // e.g. "Quý 3 / 2026"
+  title       String
+  description String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("roadmap_items")
+}
+
+enum BranchStatus {
+  PLANNING     // Lên kế hoạch thiết kế
+  SCOUTING     // Khảo sát vị trí
+  LEASING      // Đang tìm mặt bằng
+  FIT_OUT      // Đang hoàn thiện nội thất
+  OPEN         // Đã khai trương
+}
+
+/// An upcoming (or open) branch location — apps/landing only (nội dung
+/// marketing "hướng phát triển", KHÔNG phải Store vận hành — xem model Store)
+model Branch {
+  id          String       @id @default(cuid())
+  name        String
+  city        String
+  status      BranchStatus @default(PLANNING)
+  etaLabel    String       // e.g. "Quý 3 / 2026"
+  description String
+  order       Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("branches")
+}
+
+/// Bản ghi (mirror) 1 đơn hàng ĐÃ ĐỒNG BỘ từ 1 quán (apps/pos-local). Đơn được
+/// tạo và cập nhật trạng thái (isPreparing/isPaid/isDelivered/isCancelled) tại
+/// pos-local — dashboard chỉ ĐỌC (báo cáo nhiều quán), không có API ghi trực
+/// tiếp vào model này (xem POST /api/sync/push để hiểu đường ghi duy nhất).
+/// `localId` là id gốc tại pos-local, dùng để upsert idempotent khi retry sync.
+model Order {
+  id            String      @id @default(cuid())
+  store         Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId       String
+  localId       String
+  customerName  String?
+  customerNote  String?
+  /// Ghi chú nội bộ nhân viên thêm tại pos-local lúc xử lý đơn (khác
+  /// customerNote — ghi chú của khách khi đặt món).
+  adminNote     String?
+  totalVnd      Int
+  isReceived    Boolean     @default(true)
+  isPreparing   Boolean     @default(false)
+  isPaid        Boolean     @default(false)
+  isDelivered   Boolean     @default(false)
+  isCancelled   Boolean     @default(false)
+  table         Table?      @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  tableId       String?
+  tableLabel    String?
+  items         OrderItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([storeId, localId])
+  @@map("orders")
+}
+
+/// Bản ghi (mirror) 1 bàn vật lý tại 1 quán — tạo/đổi tên/thu hồi QR đều làm
+/// tại pos-local (in QR ngay tại quán), dashboard chỉ đọc để hiển thị theo Store.
+model Table {
+  id        String   @id @default(cuid())
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId   String
+  localId   String
+  code      String
+  label     String
+  isActive  Boolean  @default(true)
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, localId])
+  @@map("tables")
+}
+
+/// 1 dòng món trong 1 đơn hàng đã đồng bộ. Snapshot tên/giá tại pos-local lúc đặt.
+model OrderItem {
+  id               String    @id @default(cuid())
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId          String
+  localId          String
+  menuItemId       String?
+  nameSnapshot     String
+  priceVndSnapshot Int
+  quantity         Int
+
+  @@map("order_items")
+}
+
+/// Model local knowledge for Da Quy — nội dung do dashboard soạn/duyệt (PDF
+/// upload + trích xuất bằng Claude), đồng bộ bản sao read-only xuống pos-local
+/// qua ConfigSyncResponse.knowledgeTopics. `askCount` được cộng dồn từ
+/// knowledgeAskDeltas mà pos-local đẩy lên (chat xảy ra tại quán, không phải ở đây).
+model KnowledgeCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique // "Cafe" | "Văn hóa" | "Địa điểm check-in" | "CBD Robotics" | ...
+  slug        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  topics KnowledgeTopic[]
+}
+
+model KnowledgeDocument {
+  id          String    @id @default(cuid())
+  fileName    String
+  fileSizeKb  Int
+  status      String    @default("processing") // processing | pending_review | done | failed
+  errorMsg    String?
+  uploadedAt  DateTime  @default(now())
+  processedAt DateTime?
+  topics      KnowledgeTopic[]
+
+  @@index([status])
+}
+
+model KnowledgeTopic {
+  id         String   @id @default(cuid())
+
+  categoryId String
+  category   KnowledgeCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  documentId String?
+  document   KnowledgeDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  title      String
+  content    String   @db.Text
+  keywords   String[] @default([])
+
+  // --- phần chấm điểm 80/20 ---
+  askCount   Int      @default(0)   // cộng dồn từ delta pos-local đẩy lên qua /api/sync/push
+  score      Float    @default(0)   // recompute mỗi lần có thao tác admin (create/delete/approve), xem knowledge-scoring.ts
+  tier       String   @default("longtail") // "hot" | "longtail"
+
+  isManual   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([documentId])
+  @@index([tier])
+}

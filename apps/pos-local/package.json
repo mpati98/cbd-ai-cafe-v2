@@ -1,0 +1,34 @@
+{
+  "name": "@cbd/pos-local",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate --config ../../packages/database/prisma.config.local.ts --schema ../../packages/database/prisma/schema.local.prisma",
+    "db:push": "prisma db push --config ../../packages/database/prisma.config.local.ts --schema ../../packages/database/prisma/schema.local.prisma --url \"file:$(pwd)/pos-local.db\"",
+    "db:studio": "prisma studio --config ../../packages/database/prisma.config.local.ts --schema ../../packages/database/prisma/schema.local.prisma --url \"file:$(pwd)/pos-local.db\""
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.1",
+    "@cbd/database": "*",
+    "@cbd/shared-types": "*",
+    "@cbd/ui": "*",
+    "@google/genai": "^2.17.1",
+    "next": "16.2.10",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.2",
+    "@types/node": "^20.14.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "tailwindcss": "^4.3.2",
+    "typescript": "^5.4.5"
+  }
+}

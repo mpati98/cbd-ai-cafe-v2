@@ -1,0 +1,184 @@
+// Prisma schema — CBD AI Cafe — LOCAL (pos-local, chạy tại quán)
+// Database: SQLite, 1 file trên máy chạy Docker tại quán (xem
+// STORE_DATABASE_URL trong apps/pos-local/.env.example). Không kết nối thẳng
+// tới Postgres cloud — mọi trao đổi đi qua /api/sync/* của apps/dashboard.
+//
+// LƯU Ý: SQLite (khác Postgres) không hỗ trợ cột kiểu mảng (String[]) qua
+// Prisma — các trường vốn là mảng ở schema.cloud.prisma (MenuItem.tags,
+// KnowledgeTopic.keywords) được lưu dưới dạng JSON string (`tagsJson`,
+// `keywordsJson`) và parse/serialize thủ công ở tầng ứng dụng.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma-local"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// Cấu hình định danh quán này — luôn đúng 1 dòng, id="singleton". Set lần đầu
+/// lúc provision (dashboard tạo Store rồi cấp storeId+apiKey qua env/setup).
+model StoreConfig {
+  id            String   @id @default("singleton")
+  storeId       String?
+  apiKey        String?
+  dashboardUrl  String?
+  configVersion Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@map("store_config")
+}
+
+/// Bản sao read-only của MenuItem (cloud) — ghi đè mỗi lần config-pull thành
+/// công, KHÔNG chỉnh sửa tại pos-local (menu là catalog dùng chung mọi quán,
+/// soạn ở dashboard). `id` = id gốc bên cloud.
+model MenuItemCache {
+  id           String   @id
+  code         String   @unique
+  name         String
+  description  String
+  priceVnd     Int
+  isBestSeller Boolean  @default(false)
+  order        Int      @default(0)
+  imageId      String?
+  tagsJson     String   @default("[]")
+  syncedAt     DateTime @updatedAt
+
+  @@map("menu_item_cache")
+}
+
+/// Bản sao read-only của KnowledgeTopic (cloud) + bộ đếm ask cục bộ chưa đẩy
+/// lên (`pendingAskDelta`, reset về 0 sau khi sync push thành công).
+model KnowledgeTopicCache {
+  id              String   @id
+  categoryId      String
+  categoryName    String
+  title           String
+  content         String
+  keywordsJson    String   @default("[]")
+  tier            String   @default("longtail")
+  score           Float    @default(0)
+  pendingAskDelta Int      @default(0)
+  syncedAt        DateTime @updatedAt
+
+  @@map("knowledge_topic_cache")
+}
+
+/// Template hệ thống cho order-chat — bản sao read-only của SystemPromptConfig (cloud).
+model SystemPromptCache {
+  id        String   @id @default("singleton")
+  version   Int      @default(1)
+  content   String
+  syncedAt  DateTime @updatedAt
+
+  @@map("system_prompt_cache")
+}
+
+/// Cache ảnh (Bytes) fetch-through từ GET /api/images/:id (dashboard, công
+/// khai) — lần đầu 1 imageId được cần tới, pos-local tải về và lưu ở đây,
+/// các lần sau phục vụ thẳng từ SQLite, không gọi mạng nữa. `id` = imageId gốc bên cloud.
+model ImageCache {
+  id       String   @id
+  mimeType String
+  data     Bytes
+  cachedAt DateTime @default(now())
+
+  @@map("image_cache")
+}
+
+/// Hàng đợi đồng bộ LÊN cloud (outbox pattern) — mọi thay đổi Order/Table/
+/// knowledge-ask-delta tại pos-local đều ghi kèm 1 row ở đây. Worker định kỳ
+/// (xem apps/pos-local/src/instrumentation.ts) quét pending/failed rồi POST
+/// /api/sync/push; thành công thì đánh dấu "sent", lỗi thì tăng `attempts` +
+/// lưu `lastError` để retry sau (không bao giờ mất dữ liệu, chỉ trễ đồng bộ).
+model SyncOutbox {
+  id            String    @id @default(cuid())
+  entityType    String    // "order" | "table" | "knowledge_ask_delta"
+  entityId      String    // Order.id / Table.id / KnowledgeTopicCache.id cục bộ
+  payloadJson   String
+  status        String    @default("pending") // pending | sent | failed
+  attempts      Int       @default(0)
+  lastAttemptAt DateTime?
+  lastError     String?
+  createdAt     DateTime  @default(now())
+
+  @@index([status])
+  @@map("sync_outbox")
+}
+
+/// 1 bàn vật lý trong quán — tạo/đổi tên/thu hồi QR ngay tại pos-local (in QR
+/// tại chỗ). Mỗi thay đổi cũng enqueue 1 SyncOutbox row để cloud có bản đọc
+/// read-only theo từng Store (báo cáo nhiều quán).
+model Table {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  label     String
+  isActive  Boolean  @default(true)
+  orders    Order[]
+  sessions  TableSession[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tables")
+}
+
+/// 1 phiên "ngồi quán" của 1 bàn — giới hạn tài nguyên AI tiêu thụ thực tế
+/// (token chat + lượt giọng nói). Hoàn toàn cục bộ, không đồng bộ lên cloud.
+model TableSession {
+  id              String   @id @default(cuid())
+  table           Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  tableId         String
+  aiTokensUsed    Int      @default(0)
+  aiTokensLimit   Int      @default(5000)
+  voiceTurnsUsed  Int      @default(0)
+  voiceTurnsLimit Int      @default(3)
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tableId, expiresAt])
+  @@map("table_sessions")
+}
+
+/// 1 đơn hàng đặt từ /order tại quán này. Vòng đời (4 cờ xử lý + huỷ) y hệt
+/// thiết kế cũ — chỉ khác nơi lưu trữ chính (local thay vì cloud) và có thêm
+/// `syncStatus`/`syncedAt` theo dõi đã đẩy lên dashboard hay chưa.
+model Order {
+  id            String      @id @default(cuid())
+  customerName  String?
+  customerNote  String?
+  /// Ghi chú nội bộ do nhân viên thêm — khác customerNote (ghi chú của khách).
+  adminNote     String?
+  totalVnd      Int
+  isReceived    Boolean     @default(true)
+  isPreparing   Boolean     @default(false)
+  isPaid        Boolean     @default(false)
+  isDelivered   Boolean     @default(false)
+  isCancelled   Boolean     @default(false)
+  table         Table?      @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  tableId       String?
+  tableLabel    String?
+  items         OrderItem[]
+  syncStatus    String      @default("pending") // pending | synced
+  syncedAt      DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("orders")
+}
+
+/// 1 dòng món trong 1 đơn hàng. `menuItemId` trỏ tới MenuItemCache.id nhưng
+/// KHÔNG khai báo quan hệ Prisma cứng — cache có thể bị ghi đè/xoá theo config
+/// pull, snapshot name/price mới là nguồn sự thật cho đơn đã tạo.
+model OrderItem {
+  id               String    @id @default(cuid())
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId          String
+  menuItemId       String?
+  nameSnapshot     String
+  priceVndSnapshot Int
+  quantity         Int
+
+  @@map("order_items")
+}

@@ -1,0 +1,21 @@
+@import "tailwindcss";
+@import "@cbd/ui/theme.css";
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Mỗi section chính chiếm trọn 1 màn hình trên desktop, cuộn "snap" gọn gàng
+   giữa các phần. Trên mobile giữ cuộn tự nhiên vì nội dung không ép vừa 1 màn
+   hình nhỏ được mà không ảnh hưởng trải nghiệm đọc. */
+@media (min-width: 1024px) {
+  html {
+    scroll-snap-type: y proximity;
+  }
+  .snap-section {
+    scroll-snap-align: start;
+    /* Nav là fixed và đè lên phần trên của section khi snap tới — trừ hao
+       đúng bằng chiều cao nav để nội dung không bị nav che mất phần đầu. */
+    scroll-margin-top: 80px;
+  }
+}

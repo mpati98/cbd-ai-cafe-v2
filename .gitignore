@@ -1,12 +1,15 @@
 # dependencies
-/node_modules
+node_modules
 
 # next.js
-/.next/
+.next/
 /out/
 
 # production
 /build
+
+# turborepo
+.turbo/
 
 # env files
 .env
@@ -21,13 +24,9 @@ npm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Prisma 7 generated client (regenerate with `npm install` / `prisma generate`)
-/src/generated/
+# Prisma generated clients (regenerate with `npm install` / `prisma generate`)
+packages/database/generated/
 
-# faster-whisper local server (venv + downloaded model weights)
-/whisper-server/.venv/
-/whisper-server/__pycache__/
-
-# VieNeu-TTS local server (venv + downloaded model weights)
-/tts-server/.venv/
-/tts-server/__pycache__/
+# pos-local SQLite database (local-only runtime data, never shared/committed)
+*.db
+*.db-journal

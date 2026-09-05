@@ -1,0 +1,31 @@
+{
+  "name": "@cbd/database",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "npm run generate",
+    "generate": "npm run generate:cloud && npm run generate:local",
+    "generate:cloud": "prisma generate --schema prisma/schema.cloud.prisma",
+    "generate:local": "prisma generate --config prisma.config.local.ts --schema prisma/schema.local.prisma",
+    "db:push:cloud": "prisma db push --schema prisma/schema.cloud.prisma",
+    "db:push:local": "prisma db push --config prisma.config.local.ts --schema prisma/schema.local.prisma",
+    "db:seed:cloud": "tsx prisma/seed.ts",
+    "db:studio:cloud": "prisma studio --schema prisma/schema.cloud.prisma",
+    "db:studio:local": "prisma studio --config prisma.config.local.ts --schema prisma/schema.local.prisma"
+  },
+  "dependencies": {
+    "@prisma/adapter-neon": "^7.8.0",
+    "@prisma/adapter-better-sqlite3": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@cbd/shared-types": "*",
+    "prisma": "^7.8.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.4.5"
+  }
+}
