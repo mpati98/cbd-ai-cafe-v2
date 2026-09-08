@@ -46,14 +46,21 @@ export default function CareerPredictionPageExample() {
 
       const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+      // API trả về text/plain (không phải JSON thuần) vì bọc trong stream có
+      // heartbeat để giữ kết nối "sống" trên mạng di động - xem comment trong
+      // route.ts. Nội dung: vài khoảng trắng heartbeat + "\n" + JSON thật.
+      const rawText = await res.text();
+      const data = JSON.parse(rawText.trim()) as Result & {
+        ok?: boolean;
+        error?: string;
+      };
+
+      if (!res.ok || data.ok === false) {
         throw new Error(
           `${data.error || "Có lỗi xảy ra."} [HTTP ${res.status}, ảnh ~${sizeKb}KB, ${elapsedSec}s]`
         );
       }
 
-      const data = (await res.json()) as Result;
       setResult(data);
       setStep("result");
     } catch (e) {
@@ -107,7 +114,7 @@ export default function CareerPredictionPageExample() {
   return (
     <div className="max-w-sm mx-auto p-6 flex flex-col gap-5">
       {result?.imageUrl && (
-        <div className="w-full aspect-square rounded-2xl overflow-hidden border border-amber-400/40">
+        <div className="w-full aspect-2/3 rounded-2xl overflow-hidden border border-amber-400/40">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={result.imageUrl}

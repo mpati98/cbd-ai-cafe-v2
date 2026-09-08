@@ -1,0 +1,27 @@
+# Context Docker build là repo root (monorepo Turborepo) — apps/pos-local/Dockerfile
+# cần đọc root package-lock.json + toàn bộ workspaces để `npm ci` đúng.
+
+**/node_modules
+**/.next
+**/.turbo
+**/generated
+.git
+.gitignore
+
+# env thật — không bao giờ đi vào image, chỉ truyền qua env_file/environment lúc chạy
+**/.env
+**/.env.*
+!**/.env.example
+
+# artifact local, không cần trong build context
+*.db
+*.db-journal
+*.tsbuildinfo
+next-env.d.ts
+**/dist
+**/build
+*.log
+npm-debug.log*
+
+README.md
+VOICE-SETUP.md

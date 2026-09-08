@@ -1,0 +1,83 @@
+# Chạy tại quán: `cd apps/pos-local && docker compose up -d --build`
+# Chi tiết đầy đủ (build lần đầu, restart khi có code mới, xem log, setup
+# Cloudflare token, dnsmasq LAN) xem README.md cùng thư mục.
+
+services:
+  pos-local:
+    build:
+      # Build context PHẢI là repo root — app này nằm trong npm workspaces
+      # (Turborepo), cần thấy package-lock.json + các package khác lúc build.
+      context: ../..
+      dockerfile: apps/pos-local/Dockerfile
+    container_name: pos-local
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Ghi đè LOCAL_DATABASE_URL trong .env (vốn để chạy `npm run dev` trên
+      # máy dev, trỏ file tương đối) — trong container trỏ vào volume riêng
+      # để dữ liệu sống sót qua các lần rebuild/restart.
+      LOCAL_DATABASE_URL: "file:/data/pos-local.db"
+    volumes:
+      - pos-local-data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    # Không publish port ra host — chỉ service "caddy" được expose ra ngoài.
+
+  # Phương án LAN-only (dự phòng) — cần dnsmasq trên PC + đổi DNS DHCP của
+  # router quán, xem README.md phần "Phương án LAN-only". Không chạy mặc định
+  # (dùng Cloudflare Tunnel bên dưới thay thế) — bật lại bằng:
+  #   docker compose --profile lan up -d caddy
+  caddy:
+    profiles: ["lan"]
+    build:
+      context: ./caddy
+    container_name: pos-local-caddy
+    restart: unless-stopped
+    depends_on:
+      pos-local:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: "${DOMAIN:-dalat.cbdaicafe.com}"
+      CLOUDFLARE_API_TOKEN: "${CLOUDFLARE_API_TOKEN:?Thiếu CLOUDFLARE_API_TOKEN — xem .env.example}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Cert Let's Encrypt lưu ở đây — giữ lại giữa các lần restart để không
+      # xin cấp lại mỗi lần (tránh rate limit của Let's Encrypt).
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - internal
+
+  # Public qua internet, không cần port-forward/đụng router — cloudflared chỉ
+  # mở kết nối outbound tới Cloudflare. TLS hợp lệ được Cloudflare edge cấp
+  # tự động. Setup tunnel + lấy CLOUDFLARE_TUNNEL_TOKEN: xem README.md phần
+  # "HTTPS qua Cloudflare Tunnel".
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: pos-local-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:?Thiếu CLOUDFLARE_TUNNEL_TOKEN — xem README.md phần "HTTPS qua Cloudflare Tunnel"}
+    depends_on:
+      pos-local:
+        condition: service_healthy
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  pos-local-data:
+  caddy-data:
+  caddy-config:

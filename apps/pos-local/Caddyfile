@@ -1,0 +1,16 @@
+# Reverse proxy + TLS cho pos-local, dùng bởi docker-compose.yml (service
+# "caddy"). Cấp chứng chỉ Let's Encrypt qua Cloudflare DNS-01 — Cloudflare ở
+# đây CHỈ dùng để chứng minh sở hữu domain lúc xin/renew cert, KHÔNG proxy
+# traffic thật (traffic order/career-predict đi thẳng trong LAN quán, xem
+# README.md phần "Vì sao HTTPS mà không lộ traffic ra internet").
+#
+# {$DOMAIN} / {$CLOUDFLARE_API_TOKEN}: đọc từ .env (xem .env.example) qua
+# docker-compose.yml. Caddy tự renew, không cần cron riêng.
+
+{$DOMAIN} {
+	reverse_proxy pos-local:3000
+
+	tls {
+		dns cloudflare {$CLOUDFLARE_API_TOKEN}
+	}
+}
