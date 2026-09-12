@@ -78,13 +78,21 @@ export default function OrderExperience({
           <Image src="/logo.webp" alt="CBD AI Cafe" width={32} height={32} className="rounded-[8px]" />
           <span className="font-display text-sm font-black text-latte-100">CBD AI CAFE</span>
         </Link>
-        {table ? (
-          <span className="flex items-center gap-1.5 rounded-full bg-orange-500/15 px-3 py-1.5 font-mono text-[0.65rem] font-bold uppercase tracking-wide text-orange-300">
-            🪑 Đang đặt cho: {table.label}
-          </span>
-        ) : (
-          <span className="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-orange-400">Đặt món cùng CBD Robot</span>
-        )}
+        <div className="flex items-center gap-2.5">
+          {table ? (
+            <span className="flex items-center gap-1.5 rounded-full bg-orange-500/15 px-3 py-1.5 font-mono text-[0.65rem] font-bold uppercase tracking-wide text-orange-300">
+              🪑 Đang đặt cho: {table.label}
+            </span>
+          ) : (
+            <span className="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-orange-400">Đặt món cùng CBD Robot</span>
+          )}
+          <Link
+            href="/career-prediction"
+            className="rounded-full px-3 py-1.5 text-xs font-semibold text-latte-300/80 transition-colors hover:bg-latte-800 hover:text-latte-100"
+          >
+            🔮 Dự đoán nghề nghiệp
+          </Link>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col overflow-hidden lg:min-h-0 lg:flex-row">

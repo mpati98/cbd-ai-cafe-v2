@@ -8,6 +8,7 @@ export const metadata: Metadata = {
 const NAV = [
   { href: "/ops/orders", label: "📦 Đơn hàng" },
   { href: "/ops/tables", label: "🪑 Bàn & QR" },
+  { href: "/ops/print-photos", label: "🖨️ Ảnh in" },
 ];
 
 export default function OpsLayout({ children }: { children: React.ReactNode }) {

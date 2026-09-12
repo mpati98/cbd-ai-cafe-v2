@@ -31,3 +31,10 @@ export type TableRow = {
   isActive: boolean;
   createdAt: string;
 };
+
+export type PrintPhoto = {
+  id: string;
+  careerName: string;
+  isPrinted: boolean;
+  createdAt: string;
+};

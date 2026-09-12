@@ -3,6 +3,7 @@
 import { useState } from "react";
 import PhotoCapture from "@/components/PhotoCapture";
 import QuizChat, { type QAPair } from "@/components/QuizChat";
+import CustomerNav from "@/components/CustomerNav";
 
 // Đây là ví dụ minh hoạ cách nối QuizChat + PhotoCapture vào flow.
 // Đổi tên thành page.tsx và chỉnh sửa theo UI thật của bạn.
@@ -20,6 +21,8 @@ export default function CareerPredictionPageExample() {
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [printState, setPrintState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [printError, setPrintError] = useState<string | null>(null);
 
   function handleQuizComplete(history: QAPair[]) {
     setQuizHistory(history);
@@ -84,16 +87,37 @@ export default function CareerPredictionPageExample() {
     }
   }
 
+  async function handlePrint() {
+    if (!result) return;
+    setPrintState("sending");
+    setPrintError(null);
+    try {
+      const res = await fetch("/api/print-photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ careerName: result.careerName, imageDataUrl: result.imageUrl }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.error || "Không gửi được ảnh, vui lòng thử lại.");
+      }
+      setPrintState("sent");
+    } catch (e) {
+      setPrintState("error");
+      setPrintError(e instanceof Error ? e.message : "Có lỗi xảy ra.");
+    }
+  }
+
+  let content: React.ReactNode;
+
   if (step === "quiz") {
-    return (
+    content = (
       <div className="max-w-sm mx-auto p-6">
         <QuizChat totalQuestions={6} onComplete={handleQuizComplete} />
       </div>
     );
-  }
-
-  if (step === "photo") {
-    return (
+  } else if (step === "photo") {
+    content = (
       <div className="max-w-sm mx-auto p-6">
         <PhotoCapture onCapture={handlePhotoCaptured} />
         {loading && (
@@ -109,48 +133,70 @@ export default function CareerPredictionPageExample() {
         )}
       </div>
     );
+  } else {
+    content = (
+      <div className="max-w-sm mx-auto p-6 flex flex-col gap-5">
+        {result?.imageUrl && (
+          <div className="w-full aspect-2/3 rounded-2xl overflow-hidden border border-amber-400/40">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={result.imageUrl}
+              alt={result.careerName}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+
+        <div className="flex flex-col items-center gap-1.5">
+          <button
+            onClick={handlePrint}
+            disabled={printState === "sending" || printState === "sent"}
+            className="w-full py-2.5 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 text-neutral-900 font-bold text-sm disabled:opacity-60 transition-transform enabled:hover:scale-[1.02]"
+          >
+            {printState === "sending"
+              ? "Đang gửi..."
+              : printState === "sent"
+                ? "✓ Đã gửi cho nhân viên in"
+                : "🖨️ In ảnh lưu niệm"}
+          </button>
+          {printError && <p className="text-red-400 text-xs">{printError}</p>}
+        </div>
+
+        <div>
+          <h3 className="text-amber-300 font-semibold mb-1 text-sm uppercase tracking-wide">
+            Vibe của bạn
+          </h3>
+          <p className="text-white/80 text-sm leading-relaxed">{result?.vibe}</p>
+        </div>
+
+        <div>
+          <h3 className="text-amber-300 font-semibold mb-1 text-sm uppercase tracking-wide">
+            Nghề nghiệp dự đoán
+          </h3>
+          <p className="text-white text-xl font-bold mb-2">{result?.careerName}</p>
+          <p className="text-white/80 text-sm leading-relaxed">
+            {result?.explanation}
+          </p>
+        </div>
+
+        <button
+          onClick={() => {
+            setStep("quiz");
+            setQuizHistory([]);
+            setResult(null);
+          }}
+          className="py-2.5 rounded-xl border border-white/20 text-white/80 text-sm font-medium hover:bg-white/5 transition-colors"
+        >
+          Thử lại
+        </button>
+      </div>
+    );
   }
 
   return (
-    <div className="max-w-sm mx-auto p-6 flex flex-col gap-5">
-      {result?.imageUrl && (
-        <div className="w-full aspect-2/3 rounded-2xl overflow-hidden border border-amber-400/40">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={result.imageUrl}
-            alt={result.careerName}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      )}
-
-      <div>
-        <h3 className="text-amber-300 font-semibold mb-1 text-sm uppercase tracking-wide">
-          Vibe của bạn
-        </h3>
-        <p className="text-white/80 text-sm leading-relaxed">{result?.vibe}</p>
-      </div>
-
-      <div>
-        <h3 className="text-amber-300 font-semibold mb-1 text-sm uppercase tracking-wide">
-          Nghề nghiệp dự đoán
-        </h3>
-        <p className="text-white text-xl font-bold mb-2">{result?.careerName}</p>
-        <p className="text-white/80 text-sm leading-relaxed">
-          {result?.explanation}
-        </p>
-      </div>
-
-      <button
-        onClick={() => {
-          setStep("quiz");
-          setQuizHistory([]);
-          setResult(null);
-        }}
-        className="py-2.5 rounded-xl border border-white/20 text-white/80 text-sm font-medium hover:bg-white/5 transition-colors"
-      >
-        Thử lại
-      </button>
-    </div>
+    <>
+      <CustomerNav />
+      {content}
+    </>
   );
 }

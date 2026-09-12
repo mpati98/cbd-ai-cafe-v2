@@ -34,6 +34,20 @@ export const tableUpdateSchema = z.object({
   regenerateCode: z.boolean().optional(),
 });
 
+export const printPhotoCreateSchema = z.object({
+  careerName: z.string().min(1).max(200),
+  /** data URL dạng "data:image/jpeg;base64,...." — ảnh 4x6 inch đã ghép sẵn từ career-prediction */
+  imageDataUrl: z.string().min(1),
+});
+
+export const printPhotoUpdateSchema = z.object({
+  isPrinted: z.boolean(),
+});
+
+export const opsLoginSchema = z.object({
+  password: z.string().min(1),
+});
+
 export const orderChatRequestSchema = z.object({
   history: z
     .array(z.object({ role: z.enum(["user", "assistant"]), text: z.string().max(1000) }))

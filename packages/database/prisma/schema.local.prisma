@@ -87,6 +87,21 @@ model ImageCache {
   @@map("image_cache")
 }
 
+/// Ảnh in lưu niệm từ tính năng career-prediction — khách bấm "In ảnh" gửi
+/// ảnh đã ghép (4x6 inch @300dpi, có ô ghi chú nghề nghiệp) lên đây để nhân
+/// viên vào /ops/print-photos in ra tại quầy. Hoàn toàn cục bộ, KHÔNG đồng bộ
+/// lên cloud (ảnh khuôn mặt khách, chỉ cần dùng tại chỗ rồi có thể xoá).
+model PrintPhoto {
+  id         String   @id @default(cuid())
+  careerName String
+  mimeType   String
+  data       Bytes
+  isPrinted  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@map("print_photos")
+}
+
 /// Hàng đợi đồng bộ LÊN cloud (outbox pattern) — mọi thay đổi Order/Table/
 /// knowledge-ask-delta tại pos-local đều ghi kèm 1 row ở đây. Worker định kỳ
 /// (xem apps/pos-local/src/instrumentation.ts) quét pending/failed rồi POST
