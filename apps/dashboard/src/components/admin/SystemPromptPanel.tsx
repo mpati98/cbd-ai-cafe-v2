@@ -57,7 +57,7 @@ export default function SystemPromptPanel() {
           Template dùng bởi CBD Robot ở trang đặt món tại mọi quán (đồng bộ xuống qua ConfigSyncResponse). Phải giữ
           nguyên 2 placeholder <code className="rounded bg-latte-800 px-1 py-0.5 font-mono text-xs">{"{{TABLE_LINE}}"}</code> và{" "}
           <code className="rounded bg-latte-800 px-1 py-0.5 font-mono text-xs">{"{{MENU_BLOCK}}"}</code> — pos-local tự thay bằng
-          dòng "khách ngồi bàn X" và danh sách thực đơn hiện có.
+          dòng &quot;khách ngồi bàn X&quot; và danh sách thực đơn hiện có.
         </p>
       </div>
 

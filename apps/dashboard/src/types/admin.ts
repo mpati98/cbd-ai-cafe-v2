@@ -118,3 +118,22 @@ export type Store = {
   lastPendingSyncCount: number | null;
   createdAt: string;
 };
+
+export type LocationStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export type Location = {
+  id: string;
+  storeId: string;
+  name: string;
+  description: string;
+  category: string;
+  bestTimeToVisit: string | null;
+  relatedLocationIds: string[];
+  status: LocationStatus;
+  createdById: string | null;
+  createdBy: { name: string } | null;
+  reviewedById: string | null;
+  reviewedBy: { name: string } | null;
+  createdAt: string;
+  updatedAt: string;
+};

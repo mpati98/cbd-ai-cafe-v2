@@ -20,16 +20,24 @@ enum UserRole {
 /// Tài khoản đăng nhập dashboard. ADMIN luôn có toàn quyền (bỏ qua
 /// `permissions`); STAFF chỉ thấy/thao tác được các tab liệt kê trong
 /// `permissions` — xem danh sách hợp lệ ở apps/dashboard/src/lib/permissions.ts.
+/// `storeId`: quán nhân viên này thuộc về — CHỈ dùng để giới hạn phạm vi ở
+/// trang "Địa điểm Đà Lạt" (Location), không ảnh hưởng Orders/Tables (2 trang
+/// đó vẫn hiển thị gộp mọi quán như thiết kế gốc). null = không giới hạn
+/// (ADMIN quản lý nhiều quán, chọn quán qua dropdown ở trang Location).
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String
-  passwordHash String
-  role         UserRole  @default(STAFF)
-  permissions  String[]  @default([])
-  sessions     Session[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                String     @id @default(cuid())
+  email             String     @unique
+  name              String
+  passwordHash      String
+  role              UserRole   @default(STAFF)
+  permissions       String[]   @default([])
+  store             Store?     @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  storeId           String?
+  sessions          Session[]
+  createdLocations  Location[] @relation("LocationCreatedBy")
+  reviewedLocations Location[] @relation("LocationReviewedBy")
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   @@map("users")
 }
@@ -60,6 +68,8 @@ model Store {
   lastPendingSyncCount Int?
   orders           Order[]
   tables           Table[]
+  users            User[]
+  locations        Location[]
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -251,7 +261,7 @@ model OrderItem {
   @@map("order_items")
 }
 
-/// Model local knowledge for Da Quy — nội dung do dashboard soạn/duyệt (PDF
+/// Model local knowledge for CBD Robot — nội dung do dashboard soạn/duyệt (PDF
 /// upload + trích xuất bằng Claude), đồng bộ bản sao read-only xuống pos-local
 /// qua ConfigSyncResponse.knowledgeTopics. `askCount` được cộng dồn từ
 /// knowledgeAskDeltas mà pos-local đẩy lên (chat xảy ra tại quán, không phải ở đây).
@@ -305,4 +315,43 @@ model KnowledgeTopic {
   @@index([categoryId])
   @@index([documentId])
   @@index([tier])
+}
+
+enum LocationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Địa điểm du lịch Đà Lạt gợi ý cho khách (tính năng "Vi vu Đà Lạt" +
+/// "Hộ chiếu Đà Lạt" tại apps/pos-local) — do nhân viên/admin quản lý tập
+/// trung tại đây, gắn CỨNG với 1 quán cụ thể (khác MenuItem/KnowledgeTopic là
+/// catalog dùng chung mọi quán). Chỉ location `status = APPROVED` mới được
+/// đồng bộ xuống pos-local qua ConfigSyncResponse.locations (lọc đúng storeId
+/// của quán gọi API — xem GET /api/sync/config).
+model Location {
+  id                 String         @id @default(cuid())
+  store              Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId            String
+  name               String
+  description        String
+  /// Vd: "thiên nhiên", "check-in", "ẩm thực", "yên tĩnh"... — text tự do,
+  /// không enum, để nhân viên linh hoạt đặt category mới khi cần.
+  category           String
+  /// Thời điểm nên ghé, text ngắn tự do — vd "sáng sớm có sương".
+  bestTimeToVisit    String?
+  /// id các Location khác liên quan — dùng để gợi ý chuỗi tiếp theo trong
+  /// "Hộ chiếu Đà Lạt" (không ràng buộc khoá ngoại cứng, chỉ là gợi ý mềm).
+  relatedLocationIds String[]       @default([])
+  status             LocationStatus @default(PENDING)
+  createdBy          User?          @relation("LocationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById        String?
+  reviewedBy         User?          @relation("LocationReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedById       String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([storeId])
+  @@index([status])
+  @@map("locations")
 }

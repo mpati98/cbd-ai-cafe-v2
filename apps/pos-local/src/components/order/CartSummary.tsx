@@ -168,7 +168,7 @@ export default function CartSummary({
                 <button
                   onClick={handleSubmit}
                   disabled={state === "submitting"}
-                  className="mt-1 w-full rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 py-2.5 text-sm font-bold text-latte-950 shadow-neon-orange-sm disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-1 w-full rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 py-2.5 text-sm font-bold text-latte-950 shadow-neon-orange-sm transition-transform enabled:hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {state === "submitting" ? "Đang gửi đơn..." : "Tiến hành đặt món"}
                 </button>

@@ -155,7 +155,7 @@ export default function OrderEditModal({
             <button
               type="button"
               onClick={() => setIsCancelled((v) => !v)}
-              className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${isCancelled ? "bg-red-500/80" : "bg-latte-700"}`}
+              className={`relative h-6 w-11 shrink-0 rounded-full transition-colors hover:ring-2 hover:ring-orange-500/30 ${isCancelled ? "bg-red-500/80" : "bg-latte-700"}`}
             >
               <span
                 className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
@@ -198,7 +198,7 @@ export default function OrderEditModal({
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 px-4 py-2 text-sm font-bold text-latte-950 shadow-neon-orange-sm disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 px-4 py-2 text-sm font-bold text-latte-950 shadow-neon-orange-sm transition-transform enabled:hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? "Đang lưu..." : "Lưu thay đổi"}
           </button>

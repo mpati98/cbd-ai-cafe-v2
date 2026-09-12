@@ -13,10 +13,11 @@ const USER_SELECT = {
   name: true,
   role: true,
   permissions: true,
+  storeId: true,
   createdAt: true,
 } as const;
 
-// PATCH /api/users/:id — sửa tên/mật khẩu/role/quyền. Chỉ ADMIN.
+// PATCH /api/users/:id — sửa tên/mật khẩu/role/quyền/quán. Chỉ ADMIN.
 export const PATCH = withErrorHandling(async (req: NextRequest, { params }: Params) => {
   await requireAdminRole(req);
   const { id } = await params;
@@ -28,6 +29,7 @@ export const PATCH = withErrorHandling(async (req: NextRequest, { params }: Para
   if (body.role !== undefined) data.role = body.role;
   if (body.permissions !== undefined) data.permissions = body.permissions;
   if (body.role === "ADMIN") data.permissions = []; // ADMIN không cần permissions lẻ
+  if (body.storeId !== undefined) data.storeId = body.storeId;
   if (body.password) data.passwordHash = await hashPassword(body.password);
 
   const user = await db.user.update({ where: { id }, data, select: USER_SELECT });

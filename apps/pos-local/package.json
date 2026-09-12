@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "db:generate": "prisma generate --config ../../packages/database/prisma.config.local.ts --schema ../../packages/database/prisma/schema.local.prisma",
     "db:push": "prisma db push --config ../../packages/database/prisma.config.local.ts --schema ../../packages/database/prisma/schema.local.prisma --url \"file:$(pwd)/pos-local.db\"",
     "db:studio": "prisma studio --config ../../packages/database/prisma.config.local.ts --schema ../../packages/database/prisma/schema.local.prisma --url \"file:$(pwd)/pos-local.db\""
@@ -25,10 +25,13 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "^20.14.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.10",
     "tailwindcss": "^4.3.2",
     "typescript": "^5.4.5"
   }

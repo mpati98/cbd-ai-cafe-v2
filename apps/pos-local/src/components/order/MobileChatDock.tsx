@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import { formatVnd } from "@cbd/shared-types";
 import { imageUrl } from "@/lib/media";
@@ -15,6 +14,10 @@ import type { OrderMenuItem } from "@/components/order/OrderMenu";
  * trên lưới menu) mà sheet đang đóng, hiện 1 bong bóng gợi ý cạnh nút để
  * khách vẫn thấy/thêm được món ngay mà không cần mở lại chat. Chỉ hiển thị
  * dưới breakpoint `lg` — desktop giữ nguyên layout chat cố định bên cạnh.
+ *
+ * `open`/`onOpenChange` do OrderExperience điều khiển (thay vì state nội bộ)
+ * để nút "Chưa biết uống gì?" ở trên menu và nút nổi 💬 ở đây cùng mở CHUNG
+ * 1 chat — không tách thành 2 luồng khác nhau (quiz riêng đã bỏ, xem git log).
  */
 export default function MobileChatDock({
   items,
@@ -23,6 +26,8 @@ export default function MobileChatDock({
   highlightedItemId,
   onHighlight,
   onAddToCart,
+  open,
+  onOpenChange,
 }: {
   items: (OrderMenuItem & { tags: string[] })[];
   tableLabel?: string | null;
@@ -31,9 +36,9 @@ export default function MobileChatDock({
   highlightedItemId: string | null;
   onHighlight: (itemId: string | null) => void;
   onAddToCart: (itemId: string, quantity?: number) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-
   const suggested = !open ? items.find((i) => i.id === highlightedItemId) : undefined;
 
   return (
@@ -70,7 +75,7 @@ export default function MobileChatDock({
               onAddToCart(suggested.id);
               onHighlight(null);
             }}
-            className="mt-2.5 w-full rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 py-2 text-xs font-bold text-latte-950 shadow-neon-orange-sm"
+            className="mt-2.5 w-full rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 py-2 text-xs font-bold text-latte-950 shadow-neon-orange-sm transition-transform hover:scale-[1.02]"
           >
             + Thêm vào giỏ
           </button>
@@ -78,7 +83,7 @@ export default function MobileChatDock({
       )}
 
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => onOpenChange(true)}
         aria-label="Chat với CBD Robot"
         className="fixed bottom-6 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-2xl shadow-neon-orange transition-transform hover:scale-105"
       >
@@ -86,7 +91,7 @@ export default function MobileChatDock({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/60" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-end bg-black/60" onClick={() => onOpenChange(false)}>
           <div
             onClick={(e) => e.stopPropagation()}
             className="flex h-[85dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-latte-700 bg-latte-900 shadow-card"
@@ -97,7 +102,7 @@ export default function MobileChatDock({
               tableCode={tableCode}
               onHighlight={onHighlight}
               onAddToCart={onAddToCart}
-              onClose={() => setOpen(false)}
+              onClose={() => onOpenChange(false)}
             />
           </div>
         </div>

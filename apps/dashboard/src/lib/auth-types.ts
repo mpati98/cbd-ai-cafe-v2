@@ -10,6 +10,9 @@ export type SessionUser = {
   name: string;
   role: "ADMIN" | "STAFF";
   permissions: string[];
+  /// Quán nhân viên này thuộc về (chỉ dùng để giới hạn phạm vi trang Location)
+  /// — null nghĩa là không giới hạn (thường là ADMIN quản lý nhiều quán).
+  storeId: string | null;
 };
 
 export function userHasPermission(user: SessionUser, key: string): boolean {

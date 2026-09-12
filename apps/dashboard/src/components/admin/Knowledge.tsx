@@ -1,7 +1,7 @@
 /**
  * app/admin/knowledge/page.tsx
  * -----------------------------------------------------------------------
- * Trang quản lý kiến thức của Dã Quỳ - cấu trúc 2 tầng:
+ * Trang quản lý kiến thức của CBD Robot - cấu trúc 2 tầng:
  *   Tầng 1: Category (Cafe, Văn hóa, Địa điểm check-in, CBD Robotics...)
  *   Tầng 2: Topic nhỏ nằm trong từng category
  *
@@ -206,7 +206,7 @@ export default function KnowledgeAdminPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="font-display text-xl font-bold text-latte-100">Kiến thức của Dã Quỳ 🌻</h2>
+          <h2 className="font-display text-xl font-bold text-latte-100">Kiến thức của CBD Robot</h2>
           <p className="mt-1 text-sm text-latte-200/70">
             Quản lý theo 2 tầng: category lớn (vd Cafe, Văn hóa) chứa các topic nhỏ bên trong.
           </p>
@@ -225,7 +225,7 @@ export default function KnowledgeAdminPage() {
       <section className="mb-6 rounded-xl border border-latte-700 bg-latte-800/40 p-5">
         <h3 className="font-display text-sm font-bold text-latte-100">Nạp tài liệu mới</h3>
         <p className="mt-1 text-xs text-latte-400">
-          Dã Quỳ sẽ tự đọc PDF và xếp nội dung vào đúng category có sẵn bên dưới.
+          CBD Robot sẽ tự đọc PDF và xếp nội dung vào đúng category có sẵn bên dưới.
         </p>
         <label className="mt-3 inline-flex items-center gap-3 rounded-lg border border-latte-700 bg-latte-800 px-4 py-2 text-sm text-latte-100 cursor-pointer hover:border-orange-500/50">
           <input type="file" accept="application/pdf" onChange={handleUpload} disabled={uploading} className="hidden" />
@@ -610,7 +610,7 @@ function ReviewUploadModal({
         <div className="border-b border-latte-700 p-6">
           <h3 className="font-display text-lg font-bold text-latte-100">Duyệt topic trích xuất</h3>
           <p className="mt-1 text-xs text-latte-400">
-            Từ file &quot;{reviewUpload.fileName}&quot; — Dã Quỳ đề xuất {topics.length} topic. Bỏ chọn, sửa
+            Từ file &quot;{reviewUpload.fileName}&quot; — CBD Robot đề xuất {topics.length} topic. Bỏ chọn, sửa
             nội dung/category rồi bấm &quot;Duyệt &amp; lưu&quot; để ghi vào database.
           </p>
         </div>

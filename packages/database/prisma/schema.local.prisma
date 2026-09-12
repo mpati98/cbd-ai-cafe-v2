@@ -65,6 +65,26 @@ model KnowledgeTopicCache {
   @@map("knowledge_topic_cache")
 }
 
+/// Bản sao read-only của Location (cloud) — CHỈ các địa điểm status=approved
+/// thuộc đúng quán này (lọc theo storeId đã xảy ra ở phía cloud response,
+/// local không cần lưu storeId vì mỗi pos-local chỉ có 1 store). Dùng làm
+/// ngữ cảnh gợi ý địa điểm cho tính năng "Vi vu Đà Lạt". Không có storeId ở
+/// đây vì bảng này ĐƯỢC THAY TOÀN BỘ mỗi lần pull (xoá hết rồi tạo lại, khác
+/// MenuItemCache/KnowledgeTopicCache chỉ upsert) — location bị từ chối/xoá ở
+/// dashboard cần biến mất khỏi gợi ý ngay, không chấp nhận "mồ côi" như 2 cache
+/// kia (xem lib/sync.ts pullConfig()).
+model LocationCache {
+  id                     String   @id
+  name                   String
+  description            String
+  category               String
+  bestTimeToVisit        String?
+  relatedLocationIdsJson String   @default("[]")
+  syncedAt               DateTime @updatedAt
+
+  @@map("location_cache")
+}
+
 /// Template hệ thống cho order-chat — bản sao read-only của SystemPromptConfig (cloud).
 model SystemPromptCache {
   id        String   @id @default("singleton")

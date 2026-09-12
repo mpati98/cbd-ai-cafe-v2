@@ -54,7 +54,7 @@ function LoginForm() {
       <button
         type="submit"
         disabled={submitting || !password}
-        className="mt-4 w-full rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 py-2.5 text-sm font-bold text-latte-950 shadow-neon-orange-sm disabled:opacity-50"
+        className="mt-4 w-full rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 py-2.5 text-sm font-bold text-latte-950 shadow-neon-orange-sm transition-transform enabled:hover:scale-[1.02] disabled:opacity-50"
       >
         {submitting ? "Đang kiểm tra..." : "Đăng nhập"}
       </button>

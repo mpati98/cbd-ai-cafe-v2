@@ -70,6 +70,7 @@ export async function getSessionUser(req: NextRequest): Promise<SessionUser | nu
     name: user.name,
     role: user.role as "ADMIN" | "STAFF",
     permissions: user.permissions,
+    storeId: user.storeId,
   };
 }
 

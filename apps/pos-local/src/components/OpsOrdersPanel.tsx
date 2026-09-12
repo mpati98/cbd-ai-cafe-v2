@@ -54,7 +54,7 @@ export default function OpsOrdersPanel() {
       <div className="mb-6">
         <h2 className="font-display text-xl font-bold text-latte-100">Đơn hàng</h2>
         <p className="mt-1 text-sm text-latte-200/70">
-          Nhấp đúp vào 1 đơn (hoặc bấm "Sửa") để cập nhật tiến trình pha chế/giao món.
+          Nhấp đúp vào 1 đơn (hoặc bấm &quot;Sửa&quot;) để cập nhật tiến trình pha chế/giao món.
         </p>
       </div>
 

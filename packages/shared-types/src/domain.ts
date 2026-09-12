@@ -32,3 +32,13 @@ export type SystemPromptDTO = {
   version: number;
   content: string;
 };
+
+/** Chỉ location đã `status = APPROVED` mới bao giờ được đưa vào DTO này. */
+export type LocationDTO = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  bestTimeToVisit: string | null;
+  relatedLocationIds: string[];
+};

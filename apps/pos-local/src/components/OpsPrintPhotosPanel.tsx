@@ -85,7 +85,7 @@ export default function OpsPrintPhotosPanel() {
         <div>
           <h2 className="font-display text-xl font-bold text-latte-100">Ảnh in lưu niệm</h2>
           <p className="mt-1 text-sm text-latte-200/70">
-            Ảnh khách tạo từ tính năng dự đoán nghề nghiệp — bấm "In" để mở trang in khổ 4x6 inch.
+            Ảnh khách tạo từ tính năng dự đoán nghề nghiệp — bấm &quot;In&quot; để mở trang in khổ 4x6 inch.
           </p>
         </div>
         <button

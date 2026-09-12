@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const LINKS = [
   { href: "/order", label: "☕ Đặt món" },
   { href: "/career-prediction", label: "🔮 Dự đoán nghề nghiệp" },
+  { href: "/travel", label: "🏔️ Vi vu Đà Lạt" },
 ] as const;
 
 /** Thanh điều hướng dùng chung cho các trang khách (career-prediction, và có

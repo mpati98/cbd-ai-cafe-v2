@@ -7,7 +7,6 @@ import OrderMenu, { OrderMenuItem } from "@/components/order/OrderMenu";
 import ChatPanel from "@/components/order/ChatPanel";
 import MobileChatDock from "@/components/order/MobileChatDock";
 import CartSummary from "@/components/order/CartSummary";
-import DrinkQuiz from "@/components/order/DrinkQuiz";
 
 export type CartLine = { itemId: string; name: string; priceVnd: number; qty: number };
 export type TableContext = { code: string; label: string };
@@ -24,7 +23,9 @@ export default function OrderExperience({
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [hydrated, setHydrated] = useState(false);
-  const [quizOpen, setQuizOpen] = useState(false);
+  // Dùng chung cho cả nút "Chưa biết uống gì?" và nút nổi 💬 (MobileChatDock)
+  // — 2 lối vào cùng mở 1 chat duy nhất, không tách thành quiz riêng nữa.
+  const [chatOpen, setChatOpen] = useState(false);
 
   // Đọc giỏ hàng đã lưu (nếu có) sau khi mount, tránh lệch hydration với SSR.
   useEffect(() => {
@@ -74,7 +75,7 @@ export default function OrderExperience({
   return (
     <div className="flex min-h-screen flex-col bg-latte-950 lg:h-screen lg:overflow-hidden">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-latte-800 px-5 py-3.5 sm:px-8">
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href="/" className="flex items-center gap-2.5 opacity-90 transition-opacity hover:opacity-100">
           <Image src="/logo.webp" alt="CBD AI Cafe" width={32} height={32} className="rounded-[8px]" />
           <span className="font-display text-sm font-black text-latte-100">CBD AI CAFE</span>
         </Link>
@@ -92,13 +93,19 @@ export default function OrderExperience({
           >
             🔮 Dự đoán nghề nghiệp
           </Link>
+          <Link
+            href="/travel"
+            className="rounded-full px-3 py-1.5 text-xs font-semibold text-latte-300/80 transition-colors hover:bg-latte-800 hover:text-latte-100"
+          >
+            🏔️ Vi vu Đà Lạt
+          </Link>
         </div>
       </header>
 
       <div className="flex flex-1 flex-col overflow-hidden lg:min-h-0 lg:flex-row">
         <main className="flex-1 overflow-y-auto p-5 pb-28 sm:p-8 sm:pb-28 lg:w-2/3 lg:pb-8">
           <button
-            onClick={() => setQuizOpen(true)}
+            onClick={() => setChatOpen(true)}
             className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-3 text-sm font-semibold text-orange-300 transition-colors hover:bg-orange-500/20"
           >
             Chưa biết uống gì? Để CBD Robot gợi ý
@@ -130,14 +137,8 @@ export default function OrderExperience({
         highlightedItemId={highlightedItemId}
         onHighlight={setHighlightedItemId}
         onAddToCart={addToCart}
-      />
-
-      <DrinkQuiz
-        open={quizOpen}
-        onClose={() => setQuizOpen(false)}
-        onAddToCart={addToCart}
-        items={items}
-        tableCode={table?.code ?? null}
+        open={chatOpen}
+        onOpenChange={setChatOpen}
       />
 
       <CartSummary

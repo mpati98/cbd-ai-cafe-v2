@@ -125,7 +125,7 @@ export default function QuizChat({
           <p className="text-red-400 text-sm text-center">{error}</p>
           <button
             onClick={() => fetchNextQuestion(history)}
-            className="px-4 py-2 rounded-lg border border-white/20 text-white/80 text-sm"
+            className="px-4 py-2 rounded-lg border border-white/20 text-white/80 text-sm transition-colors hover:bg-white/5"
           >
             Thử lại
           </button>

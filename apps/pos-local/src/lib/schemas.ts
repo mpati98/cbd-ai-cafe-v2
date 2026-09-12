@@ -58,11 +58,10 @@ export const orderChatRequestSchema = z.object({
   tableCode: z.string().max(40).nullable().optional(),
 });
 
-export const quizRequestSchema = z.object({
+export const travelQuizRequestSchema = z.object({
   history: z
     .array(z.object({ role: z.enum(["user", "assistant"]), text: z.string().max(1000) }))
     .max(20)
     .default([]),
   message: z.string().min(1).max(500),
-  tableCode: z.string().max(40).nullable().optional(),
 });

@@ -17,6 +17,7 @@ export const PERMISSIONS = [
   { key: "tables", label: "Bàn & QR (chỉ xem — quản lý tại quán)" },
   { key: "knowledge", label: "Kiến thức" },
   { key: "stores", label: "Quán & đồng bộ" },
+  { key: "locations", label: "Địa điểm Đà Lạt" },
   { key: "systemPrompt", label: "System prompt order-chat" },
 ] as const;
 

@@ -50,7 +50,6 @@ export default function OrdersPanel() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function setBestSeller(menuItemId: string | null) {

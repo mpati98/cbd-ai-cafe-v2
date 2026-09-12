@@ -111,7 +111,7 @@ export default function TablesPanel() {
         <button
           type="submit"
           disabled={creating || !newLabel.trim()}
-          className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 px-5 py-2.5 text-sm font-bold text-latte-950 shadow-neon-orange-sm disabled:opacity-50"
+          className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 px-5 py-2.5 text-sm font-bold text-latte-950 shadow-neon-orange-sm transition-transform enabled:hover:scale-[1.02] disabled:opacity-50"
         >
           {creating ? "Đang tạo..." : "+ Thêm bàn"}
         </button>
@@ -213,7 +213,7 @@ export default function TablesPanel() {
               </button>
               <button
                 type="submit"
-                className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 px-4 py-2 text-sm font-bold text-latte-950 shadow-neon-orange-sm"
+                className="rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 px-4 py-2 text-sm font-bold text-latte-950 shadow-neon-orange-sm transition-transform hover:scale-[1.02]"
               >
                 Lưu
               </button>
@@ -259,7 +259,7 @@ function QrModal({ table, onClose }: { table: TableRow; onClose: () => void }) {
 
         <button
           onClick={handleDownload}
-          className="w-full rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 py-2.5 text-sm font-bold text-latte-950 shadow-neon-orange-sm"
+          className="w-full rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 py-2.5 text-sm font-bold text-latte-950 shadow-neon-orange-sm transition-transform hover:scale-[1.02]"
         >
           Tải ảnh QR (PNG)
         </button>

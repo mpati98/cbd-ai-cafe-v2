@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { adminApi, AdminApiError } from "@/lib/admin-api";
 import { PERMISSIONS, PermissionKey } from "@/lib/permissions";
 import { SessionUser } from "@/lib/auth-types";
+import { Store } from "@/types/admin";
 
 type UserRow = {
   id: string;
@@ -11,6 +12,7 @@ type UserRow = {
   name: string;
   role: "ADMIN" | "STAFF";
   permissions: string[];
+  storeId: string | null;
   createdAt: string;
 };
 
@@ -20,10 +22,12 @@ const emptyForm = {
   password: "",
   role: "STAFF" as "ADMIN" | "STAFF",
   permissions: [] as PermissionKey[],
+  storeId: "" as string,
 };
 
 export default function UsersPanel({ currentUser }: { currentUser: SessionUser }) {
   const [users, setUsers] = useState<UserRow[] | null>(null);
+  const [stores, setStores] = useState<Store[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editing, setEditing] = useState<UserRow | "new" | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -43,6 +47,10 @@ export default function UsersPanel({ currentUser }: { currentUser: SessionUser }
 
   useEffect(() => {
     load();
+    adminApi
+      .list<Store>("/api/stores")
+      .then(setStores)
+      .catch(() => setStores([])); // không chặn trang users nếu lỗi tải store list
   }, []);
 
   function openNew() {
@@ -52,7 +60,14 @@ export default function UsersPanel({ currentUser }: { currentUser: SessionUser }
   }
 
   function openEdit(u: UserRow) {
-    setForm({ email: u.email, name: u.name, password: "", role: u.role, permissions: u.permissions as PermissionKey[] });
+    setForm({
+      email: u.email,
+      name: u.name,
+      password: "",
+      role: u.role,
+      permissions: u.permissions as PermissionKey[],
+      storeId: u.storeId ?? "",
+    });
     setFormError(null);
     setEditing(u);
   }
@@ -76,12 +91,14 @@ export default function UsersPanel({ currentUser }: { currentUser: SessionUser }
           password: form.password,
           role: form.role,
           permissions: form.permissions,
+          storeId: form.role === "STAFF" && form.storeId ? form.storeId : null,
         });
       } else if (editing) {
         const patch: Record<string, unknown> = {
           name: form.name.trim(),
           role: form.role,
           permissions: form.permissions,
+          storeId: form.role === "STAFF" && form.storeId ? form.storeId : null,
         };
         if (form.password) patch.password = form.password;
         await adminApi.update(`/api/users/${editing.id}`, patch);
@@ -150,6 +167,11 @@ export default function UsersPanel({ currentUser }: { currentUser: SessionUser }
                 )}
               </div>
               <p className="mt-0.5 text-xs text-latte-400">{u.email}</p>
+              {u.role === "STAFF" && (
+                <p className="mt-1 text-xs text-latte-400">
+                  Quán: {stores.find((s) => s.id === u.storeId)?.name ?? "chưa gán"}
+                </p>
+              )}
               {u.role === "STAFF" && (
                 <p className="mt-1.5 text-xs text-latte-300">
                   Quyền:{" "}
@@ -244,6 +266,26 @@ export default function UsersPanel({ currentUser }: { currentUser: SessionUser }
                   ))}
                 </div>
               </div>
+
+              {form.role === "STAFF" && (
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-latte-200/80">
+                    Quán thuộc về (chỉ ảnh hưởng trang &quot;Địa điểm Đà Lạt&quot;)
+                  </label>
+                  <select
+                    value={form.storeId}
+                    onChange={(e) => setForm((f) => ({ ...f, storeId: e.target.value }))}
+                    className="w-full rounded-lg border border-latte-700 bg-latte-800 px-3 py-2 text-sm text-latte-100"
+                  >
+                    <option value="">— Không gán quán —</option>
+                    {stores.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {form.role === "STAFF" && (
                 <div>

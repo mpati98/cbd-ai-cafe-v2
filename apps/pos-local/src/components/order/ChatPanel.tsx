@@ -288,7 +288,7 @@ export default function ChatPanel({
           type="submit"
           disabled={!inputValue.trim() || sending}
           aria-label="Gửi"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-latte-950 shadow-neon-orange-sm disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-latte-950 shadow-neon-orange-sm transition-transform enabled:hover:scale-110 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
             <path d="M5 12h14M13 6l6 6-6 6" />

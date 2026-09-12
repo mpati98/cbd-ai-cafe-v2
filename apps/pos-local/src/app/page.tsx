@@ -20,10 +20,10 @@ const CARDS = [
     description: "Trả lời vài câu hỏi vui, nhận ảnh check-in cùng nghề nghiệp AI dự đoán cho bạn.",
   },
   {
-    href: null,
+    href: "/travel",
     icon: "🏔️",
     title: "Vi vu Đà Lạt",
-    description: "Gợi ý lịch trình khám phá Đà Lạt quanh quán — sắp ra mắt.",
+    description: "Trò chuyện để nhận gợi ý lịch trình khám phá Đà Lạt, lưu lại hộ chiếu địa điểm đã ghé.",
   },
 ] as const;
 
@@ -40,33 +40,19 @@ export default function HomePage() {
       </div>
 
       <div className="grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-3">
-        {CARDS.map((card) =>
-          card.href ? (
-            <Link
-              key={card.title}
-              href={card.href}
-              className="group flex flex-col gap-3 rounded-2xl border border-latte-700 bg-latte-800/40 p-6 shadow-card transition-all hover:-translate-y-1 hover:border-orange-500/40 hover:shadow-neon-orange"
-            >
-              <span className="text-4xl">{card.icon}</span>
-              <h2 className="font-display text-lg font-bold text-latte-100 group-hover:text-orange-300">
-                {card.title}
-              </h2>
-              <p className="text-sm leading-relaxed text-latte-200/70">{card.description}</p>
-            </Link>
-          ) : (
-            <div
-              key={card.title}
-              className="relative flex flex-col gap-3 rounded-2xl border border-latte-700/60 bg-latte-800/20 p-6 opacity-60"
-            >
-              <span className="absolute right-4 top-4 rounded-full bg-latte-700/80 px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wide text-latte-200/80">
-                Sắp ra mắt
-              </span>
-              <span className="text-4xl grayscale">{card.icon}</span>
-              <h2 className="font-display text-lg font-bold text-latte-100">{card.title}</h2>
-              <p className="text-sm leading-relaxed text-latte-200/70">{card.description}</p>
-            </div>
-          )
-        )}
+        {CARDS.map((card) => (
+          <Link
+            key={card.title}
+            href={card.href}
+            className="group flex flex-col gap-3 rounded-2xl border border-latte-700 bg-latte-800/40 p-6 shadow-card transition-all hover:-translate-y-1 hover:border-orange-500/40 hover:shadow-neon-orange"
+          >
+            <span className="text-4xl">{card.icon}</span>
+            <h2 className="font-display text-lg font-bold text-latte-100 group-hover:text-orange-300">
+              {card.title}
+            </h2>
+            <p className="text-sm leading-relaxed text-latte-200/70">{card.description}</p>
+          </Link>
+        ))}
       </div>
 
       <Link href="/ops" className="text-xs text-latte-400/70 hover:text-latte-200">

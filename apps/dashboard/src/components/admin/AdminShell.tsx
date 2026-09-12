@@ -10,6 +10,7 @@ import UsersPanel from "@/components/admin/UsersPanel";
 import TablesReportPanel from "@/components/admin/TablesReportPanel";
 import KnowledgeAdminPage from "@/components/admin/Knowledge";
 import StoresPanel from "@/components/admin/StoresPanel";
+import LocationsPanel from "@/components/admin/LocationsPanel";
 import SystemPromptPanel from "@/components/admin/SystemPromptPanel";
 import { adminApi } from "@/lib/admin-api";
 import { SessionUser, userHasPermission } from "@/lib/auth-types";
@@ -20,6 +21,7 @@ const USERS_TAB_KEY = "users";
 const TABLES_TAB_KEY = "tables";
 const KNOWLEDGE_TAB_KEY = "knowledge";
 const STORES_TAB_KEY = "stores";
+const LOCATIONS_TAB_KEY = "locations";
 const SYSTEM_PROMPT_TAB_KEY = "system-prompt";
 
 export default function AdminShell({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {
@@ -34,6 +36,7 @@ export default function AdminShell({ user, onLogout }: { user: SessionUser; onLo
   const canTables = userHasPermission(user, "tables");
   const canKnowledge = userHasPermission(user, "knowledge");
   const canStores = userHasPermission(user, "stores");
+  const canLocations = userHasPermission(user, "locations");
   const canSystemPrompt = userHasPermission(user, "systemPrompt");
   const isAdmin = user.role === "ADMIN";
 
@@ -48,6 +51,8 @@ export default function AdminShell({ user, onLogout }: { user: SessionUser; onLo
         ? KNOWLEDGE_TAB_KEY
         : canStores
         ? STORES_TAB_KEY
+        : canLocations
+        ? LOCATIONS_TAB_KEY
         : canSystemPrompt
         ? SYSTEM_PROMPT_TAB_KEY
         : isAdmin
@@ -147,6 +152,12 @@ export default function AdminShell({ user, onLogout }: { user: SessionUser; onLo
               {tabButton(STORES_TAB_KEY, "🏬 Quán & đồng bộ")}
             </>
           )}
+          {canLocations && (
+            <>
+              <div className="my-2 border-t border-latte-800" />
+              {tabButton(LOCATIONS_TAB_KEY, "🗺️ Địa điểm Đà Lạt")}
+            </>
+          )}
           {canSystemPrompt && (
             <>
               <div className="my-2 border-t border-latte-800" />
@@ -199,6 +210,8 @@ export default function AdminShell({ user, onLogout }: { user: SessionUser; onLo
             <KnowledgeAdminPage />
           ) : activeKey === STORES_TAB_KEY && canStores ? (
             <StoresPanel />
+          ) : activeKey === LOCATIONS_TAB_KEY && canLocations ? (
+            <LocationsPanel user={user} />
           ) : activeKey === SYSTEM_PROMPT_TAB_KEY && canSystemPrompt ? (
             <SystemPromptPanel />
           ) : active ? (

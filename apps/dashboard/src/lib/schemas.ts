@@ -57,6 +57,7 @@ const PERMISSION_KEY_SCHEMA = z.enum([
   "knowledge",
   "stores",
   "systemPrompt",
+  "locations",
 ]);
 
 export const userCreateSchema = z.object({
@@ -65,6 +66,9 @@ export const userCreateSchema = z.object({
   password: z.string().min(8, "Mật khẩu tối thiểu 8 ký tự."),
   role: z.enum(["ADMIN", "STAFF"]).default("STAFF"),
   permissions: z.array(PERMISSION_KEY_SCHEMA).max(10).default([]),
+  /// Quán nhân viên thuộc về — chỉ có ý nghĩa với trang Location, null/bỏ
+  /// trống nghĩa là không gán quán (thường dùng cho ADMIN).
+  storeId: z.string().nullable().optional(),
 });
 
 export const userUpdateSchema = z.object({
@@ -72,6 +76,25 @@ export const userUpdateSchema = z.object({
   password: z.string().min(8, "Mật khẩu tối thiểu 8 ký tự.").optional(),
   role: z.enum(["ADMIN", "STAFF"]).optional(),
   permissions: z.array(PERMISSION_KEY_SCHEMA).max(10).optional(),
+  storeId: z.string().nullable().optional(),
+});
+
+export const locationCreateSchema = z.object({
+  storeId: z.string().min(1),
+  name: z.string().min(1, "Cần nhập tên địa điểm.").max(160),
+  description: z.string().min(1, "Cần nhập mô tả.").max(1000),
+  category: z.string().min(1, "Cần chọn/nhập category.").max(60),
+  bestTimeToVisit: z.string().max(200).nullable().optional(),
+  relatedLocationIds: z.array(z.string()).max(20).default([]),
+});
+
+export const locationUpdateSchema = z.object({
+  name: z.string().min(1).max(160).optional(),
+  description: z.string().min(1).max(1000).optional(),
+  category: z.string().min(1).max(60).optional(),
+  bestTimeToVisit: z.string().max(200).nullable().optional(),
+  relatedLocationIds: z.array(z.string()).max(20).optional(),
+  status: z.enum(["PENDING", "APPROVED", "REJECTED"]).optional(),
 });
 
 export const knowledgeTopicCreateSchema = z.object({

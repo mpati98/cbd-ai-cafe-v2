@@ -148,6 +148,23 @@ export async function pullConfig(): Promise<void> {
         create: { id: "singleton", configVersion: data.configVersion },
         update: { configVersion: data.configVersion },
       }),
+      // Location: THAY TOÀN BỘ (xoá hết rồi tạo lại) thay vì upsert như menu/
+      // knowledge ở trên — location bị từ chối/xoá ở dashboard phải biến mất
+      // khỏi gợi ý ngay lần pull tiếp theo, không chấp nhận "mồ côi" (xem
+      // comment tại model LocationCache, schema.local.prisma).
+      db.locationCache.deleteMany({}),
+      ...data.locations.map((l) =>
+        db.locationCache.create({
+          data: {
+            id: l.id,
+            name: l.name,
+            description: l.description,
+            category: l.category,
+            bestTimeToVisit: l.bestTimeToVisit,
+            relatedLocationIdsJson: JSON.stringify(l.relatedLocationIds),
+          },
+        })
+      ),
     ]);
   } catch (err) {
     console.warn("[sync] Không pull được config từ dashboard:", err instanceof Error ? err.message : err);

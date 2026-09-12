@@ -39,7 +39,7 @@ export default function PrintPhotoView({ id }: { id: string }) {
         )}
         <button
           onClick={() => window.print()}
-          className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-white print:hidden"
+          className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-orange-600 print:hidden"
         >
           In lại
         </button>

@@ -11,6 +11,7 @@ const USER_SELECT = {
   name: true,
   role: true,
   permissions: true,
+  storeId: true,
   createdAt: true,
 } as const;
 
@@ -39,6 +40,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
       passwordHash,
       role: body.role,
       permissions: body.role === "ADMIN" ? [] : body.permissions,
+      storeId: body.storeId ?? null,
     },
     select: USER_SELECT,
   });

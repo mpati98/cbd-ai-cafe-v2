@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { MenuItemDTO, KnowledgeTopicDTO, SystemPromptDTO } from "./domain";
+import type { MenuItemDTO, KnowledgeTopicDTO, SystemPromptDTO, LocationDTO } from "./domain";
 
 /**
  * Hợp đồng dữ liệu giữa `apps/pos-local` (chạy tại quán, SQLite) và
@@ -18,6 +18,10 @@ export type ConfigSyncResponse = {
   menu: MenuItemDTO[];
   knowledgeTopics: KnowledgeTopicDTO[];
   systemPrompt: SystemPromptDTO;
+  /// Chỉ location APPROVED thuộc đúng storeId của quán gọi API (xác thực qua
+  /// Store.apiKey, xem requireStore()) — khác menu/knowledgeTopics vốn là
+  /// catalog dùng chung mọi quán.
+  locations: LocationDTO[];
 };
 
 export const orderItemSyncSchema = z.object({
