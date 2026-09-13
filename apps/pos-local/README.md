@@ -39,19 +39,42 @@ package khác (`@cbd/database`, `@cbd/shared-types`, `@cbd/ui`) để build đú
 
 Database SQLite của pos-local (`LOCAL_DATABASE_URL`) chưa có bảng nào ngay
 sau khi tạo volume lần đầu — cần chạy `prisma db push` một lần để tạo schema.
-Cách đơn giản nhất: chạy trên host (không cần trong container) trỏ thẳng vào
-file trong volume:
+Container chạy thật (`runner`) không có Prisma CLI (chỉ có `@prisma/client`
+runtime), và trên Windows/Docker Desktop (WSL2) không thể trỏ thẳng vào
+`docker volume inspect ... Mountpoint` từ host như trên Linux (đường dẫn đó
+nằm trong VM WSL2, không phải đường dẫn Windows thật). Cách chạy được trên
+mọi hệ điều hành: build tạm stage `builder` (đã có đủ Prisma CLI + toàn bộ
+repo) rồi chạy `db push` từ một container dùng chung volume:
 
 ```bash
-docker compose exec pos-local sh -c 'echo "container không có Prisma CLI — chạy lệnh dưới đây TỪ HOST"' || true
-docker volume inspect pos-local_pos-local-data --format '{{ .Mountpoint }}'
-# copy đường dẫn trên vào, rồi từ repo root:
-LOCAL_DATABASE_URL="file:<mountpoint>/pos-local.db" \
-  npm run db:push --workspace=@cbd/pos-local
+# từ repo root
+docker build --target builder -t pos-local-builder-tmp -f apps/pos-local/Dockerfile .
+
+docker run --rm \
+  -v pos-local_pos-local-data:/data \
+  -w /app/apps/pos-local \
+  pos-local-builder-tmp \
+  npx prisma db push \
+    --config ../../packages/database/prisma.config.local.ts \
+    --schema ../../packages/database/prisma/schema.local.prisma \
+    --url "file:/data/pos-local.db"
+
+docker rmi pos-local-builder-tmp   # dọn image tạm, không cần giữ lại
+```
+
+Sau đó fix lại ownership của volume (image `builder` chạy bằng root nên file
+db mới tạo sẽ thuộc root, trong khi app thật chạy bằng user `nextjs`):
+
+```bash
+docker compose exec -u root pos-local chown -R nextjs:nodejs /data
+docker compose restart pos-local
 ```
 
 (Chỉ cần làm 1 lần — volume `pos-local-data` giữ nguyên qua các lần
-`docker compose up`/rebuild sau đó.)
+`docker compose up`/rebuild sau đó. Từ bản Dockerfile hiện tại, `/data` đã
+được tạo sẵn với đúng owner `nextjs` lúc build image, nên bước chown ở trên
+chỉ cần thiết vì lệnh `db push` phía trên chạy bằng root — nếu chạy container
+thật lần đầu mà chưa từng có ai ghi vào `/data` bằng root thì có thể bỏ qua.)
 
 ## Restart khi có code mới
 

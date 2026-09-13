@@ -69,7 +69,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       curl openssl fontconfig fonts-noto-core \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 1001 nodejs \
-    && useradd --uid 1001 --gid nodejs --shell /usr/sbin/nologin --no-create-home nextjs
+    && useradd --uid 1001 --gid nodejs --shell /usr/sbin/nologin --no-create-home nextjs \
+    && mkdir -p /data && chown nextjs:nodejs /data
 
 ENV NODE_ENV=production
 ENV PORT=3000
