@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ZodError, ZodSchema } from "zod";
+import { ZodError, ZodType, ZodTypeDef } from "zod";
 import { getLocalClient } from "@cbd/database";
 
 /** Thrown by helpers below; caught centrally by `withErrorHandling`. */
@@ -24,7 +24,9 @@ export function requireDb() {
   return db;
 }
 
-export async function parseBody<T>(req: Request, schema: ZodSchema<T>): Promise<T> {
+// Input của schema để `unknown` (không ép bằng output) — schema có `.default()`
+// có type input khác output; hàm trả về kiểu OUTPUT đã áp dụng default.
+export async function parseBody<T>(req: Request, schema: ZodType<T, ZodTypeDef, unknown>): Promise<T> {
   let json: unknown;
   try {
     json = await req.json();

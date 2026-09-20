@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DETAIL_KEYS, EXPERIENCE_KEYS } from "@/lib/survey-config";
 
 export const orderCreateSchema = z.object({
   customerName: z.string().max(120).trim().optional(),
@@ -42,6 +43,23 @@ export const printPhotoCreateSchema = z.object({
 
 export const printPhotoUpdateSchema = z.object({
   isPrinted: z.boolean(),
+});
+
+const surveyRatedSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  note: z.string().max(1000).default(""),
+});
+
+/** Body khách gửi lên khi hoàn thành khảo sát — khớp SurveySubmitPayload (types/survey.ts). */
+export const surveySubmitSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  drink: surveyRatedSchema,
+  experiences: z.array(z.enum(EXPERIENCE_KEYS)).max(EXPERIENCE_KEYS.length),
+  experienceRatings: z.record(z.enum(EXPERIENCE_KEYS), surveyRatedSchema).optional(),
+  space: surveyRatedSchema,
+  staff: surveyRatedSchema,
+  details: z.record(z.enum(DETAIL_KEYS), z.string().max(1000)).optional(),
+  suggestion: z.string().max(2000).default(""),
 });
 
 export const opsLoginSchema = z.object({

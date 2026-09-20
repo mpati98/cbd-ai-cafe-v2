@@ -38,7 +38,7 @@ function LoginForm() {
       className="w-full max-w-xs rounded-2xl border border-latte-700 bg-latte-800/40 p-6"
     >
       <h1 className="font-display text-lg font-bold text-latte-100">Đăng nhập nhân viên</h1>
-      <p className="mt-1 mb-5 text-sm text-latte-200/70">Nhập mật khẩu để xem/in ảnh lưu niệm của khách.</p>
+      <p className="mt-1 mb-5 text-sm text-latte-200/70">Nhập mật khẩu để xem ảnh in và kết quả khảo sát của khách.</p>
 
       <input
         type="password"

@@ -122,6 +122,24 @@ model PrintPhoto {
   @@map("print_photos")
 }
 
+/// 1 lượt khảo sát trải nghiệm khách điền tại quán (trang /survey, kiosk/tablet).
+/// `dataJson` giữ nguyên toàn bộ mô hình dữ liệu khảo sát (xem types/survey.ts);
+/// 3 cột rating tách riêng chỉ để tiện truy vấn/thống kê. Hoàn toàn cục bộ,
+/// không đồng bộ lên cloud. Khách không đăng nhập — chỉ nhân viên (mật khẩu
+/// chung, xem lib/ops-auth.ts) mới xem/xuất/xoá được ở /ops/survey.
+model SurveyResponse {
+  id          String   @id @default(cuid())
+  name        String
+  drinkRating Int
+  spaceRating Int
+  staffRating Int
+  dataJson    String
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("survey_responses")
+}
+
 /// Hàng đợi đồng bộ LÊN cloud (outbox pattern) — mọi thay đổi Order/Table/
 /// knowledge-ask-delta tại pos-local đều ghi kèm 1 row ở đây. Worker định kỳ
 /// (xem apps/pos-local/src/instrumentation.ts) quét pending/failed rồi POST

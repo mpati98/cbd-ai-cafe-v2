@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "CBD AI Cafe — Quầy",
@@ -9,13 +10,22 @@ const NAV = [
   { href: "/ops/orders", label: "📦 Đơn hàng" },
   { href: "/ops/tables", label: "🪑 Bàn & QR" },
   { href: "/ops/print-photos", label: "🖨️ Ảnh in" },
+  { href: "/ops/survey", label: "📝 Khảo sát" },
 ];
 
 export default function OpsLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-latte-950">
       <header className="flex items-center gap-4 border-b border-latte-800 bg-latte-900/60 px-6 py-4">
-        <b className="font-display text-sm font-black text-latte-100">CBD AI CAFE · Quầy</b>
+        <Link
+          href="/"
+          aria-label="Về trang chủ CBD AI Cafe"
+          className="flex shrink-0 items-center gap-2.5 rounded-lg opacity-90 transition-opacity hover:opacity-100"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.webp" alt="" width={32} height={32} className="rounded-lg" />
+          <b className="font-display text-sm font-black text-latte-100">CBD AI CAFE · Quầy</b>
+        </Link>
         <nav className="flex gap-2">
           {NAV.map((n) => (
             <a

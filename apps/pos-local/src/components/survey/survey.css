@@ -1,0 +1,372 @@
+/* Khảo sát trải nghiệm — CBD AI Cafe. Mọi class có tiền tố `sv-` để không đụng
+   style chung của app. Design tokens theo brand (light mặc định, dark theo
+   prefers-color-scheme của thiết bị). */
+
+.sv-root {
+  --bg: #fbf6ee;
+  --surface: #ffffff;
+  --text: #2a2117;
+  --text-soft: #8b7b64;
+  --amber: #c8790e;
+  --cyan: #0c8599;
+  --border: #eae0cc;
+  /* Chữ trên nền màu nhấn amber (nút chính) — thêm ngoài bảng token để đủ tương phản ở cả 2 theme. */
+  --on-amber: #ffffff;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  color-scheme: light;
+  font-family: var(--ff-body), system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  .sv-root {
+    --bg: #1b1712;
+    --surface: #26201a;
+    --text: #f3eadc;
+    --text-soft: #b3a48c;
+    --amber: #e0a03d;
+    --cyan: #4fc3d1;
+    --border: #3a3125;
+    --on-amber: #1b1712;
+    color-scheme: dark;
+  }
+}
+
+/* ---------- Thanh tiến trình ---------- */
+.sv-progress {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 10;
+  height: 4px;
+  background: var(--border);
+}
+.sv-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--amber), var(--cyan));
+  transition: width 467ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------- Header / logo ---------- */
+.sv-header {
+  display: flex;
+  align-items: center;
+  padding: 22px 28px 0;
+}
+/* Logo + tên quán: bấm để về trang chủ. */
+.sv-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 4px 4px;
+  margin-left: -4px;
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+.sv-home:hover {
+  background: color-mix(in srgb, var(--text-soft) 14%, transparent);
+  transform: translateY(-1px);
+}
+.sv-home:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+.sv-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+.sv-brand {
+  font-family: var(--ff-display), system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Khung câu hỏi (căn giữa màn hình) ---------- */
+.sv-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.sv-stage {
+  width: 100%;
+  max-width: 720px;
+  text-align: center;
+}
+
+@keyframes sv-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Nhãn nhỏ (eyebrow) fade in TRƯỚC — opacity gốc = 0 nên hoàn toàn vô hình tới khi chạy. */
+.sv-eyebrow {
+  display: inline-block;
+  margin-bottom: 18px;
+  color: var(--amber);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: sv-fade-in 400ms ease forwards;
+}
+
+.sv-question {
+  margin: 0;
+  font-family: var(--ff-display), system-ui, sans-serif;
+  font-size: clamp(1.6rem, 4.4vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+/* Từng từ: opacity gốc 0 (chưa tới lượt = vô hình hẳn, không mờ sẵn), delay
+   và thời lượng lấy inline từ SurveyExperience.tsx (WORD_START/WORD_STEP/WORD_FADE) —
+   giá trị 467ms dưới đây chỉ là mặc định dự phòng. */
+.sv-word {
+  display: inline-block;
+  opacity: 0;
+  animation: sv-fade-in 467ms ease forwards;
+}
+
+/* Phần trả lời: giữ chỗ sẵn trong layout (câu hỏi không bị xô lệch khi hiện),
+   fade + dịch nhẹ lên. */
+.sv-answer {
+  margin-top: 36px;
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 400ms ease, transform 400ms ease;
+  pointer-events: none;
+}
+.sv-answer.sv-on {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* ---------- Ô nhập ---------- */
+.sv-input {
+  display: block;
+  width: 100%;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.sv-input::placeholder {
+  color: var(--text-soft);
+}
+.sv-input:hover {
+  border-color: var(--text-soft);
+}
+.sv-input:focus {
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--amber) 22%, transparent);
+}
+.sv-input-line {
+  max-width: 420px;
+  margin: 0 auto;
+  font-size: 1.25rem;
+  text-align: center;
+}
+.sv-textarea {
+  max-width: 520px;
+  margin: 0 auto;
+  resize: vertical;
+  text-align: left;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* ---------- Danh sách lựa chọn (rating dọc / multiselect) ---------- */
+.sv-options {
+  display: grid;
+  gap: 10px;
+  max-width: 440px;
+  margin: 0 auto;
+  text-align: left;
+}
+.sv-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.02rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+.sv-option:hover {
+  border-color: var(--amber);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -10px color-mix(in srgb, var(--amber) 70%, transparent);
+}
+.sv-option:active {
+  transform: translateY(0);
+}
+.sv-option:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.sv-option[aria-checked="true"] {
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 12%, var(--surface));
+}
+
+.sv-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-weight: 700;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+.sv-option:hover .sv-badge {
+  border-color: var(--amber);
+}
+.sv-option[aria-checked="true"] .sv-badge {
+  border-color: var(--amber);
+  background: var(--amber);
+  color: var(--on-amber);
+}
+/* Ô vuông cho multiselect */
+.sv-badge-check {
+  border-radius: 8px;
+}
+
+.sv-note {
+  margin-top: 18px;
+}
+
+/* ---------- Nút ---------- */
+.sv-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 26px;
+}
+.sv-btn {
+  padding: 13px 32px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--amber);
+  color: var(--on-amber);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+.sv-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: 0 10px 22px -12px var(--amber);
+}
+.sv-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.sv-btn:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+.sv-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sv-btn-ghost {
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+.sv-btn-ghost:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text-soft) 14%, transparent);
+}
+.sv-btn-ghost:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.sv-error {
+  margin-top: 14px;
+  color: #c0392b;
+  font-size: 0.95rem;
+}
+@media (prefers-color-scheme: dark) {
+  .sv-error {
+    color: #ef8a7d;
+  }
+}
+
+/* ---------- Footer / nút Quản trị ---------- */
+.sv-footer {
+  display: flex;
+  justify-content: center;
+  padding: 0 0 22px;
+}
+.sv-admin {
+  padding: 6px 14px;
+  border-radius: 999px;
+  color: var(--text-soft);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  opacity: 0.4;
+  transition: opacity 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+.sv-admin:hover {
+  opacity: 1;
+  color: var(--text);
+  background: color-mix(in srgb, var(--text-soft) 14%, transparent);
+}
+
+/* Người dùng bật "giảm chuyển động" — hiện ngay, không animation. */
+@media (prefers-reduced-motion: reduce) {
+  .sv-eyebrow,
+  .sv-word {
+    animation: none;
+    opacity: 1;
+  }
+  .sv-answer,
+  .sv-progress-fill,
+  .sv-option,
+  .sv-btn {
+    transition: none;
+  }
+}

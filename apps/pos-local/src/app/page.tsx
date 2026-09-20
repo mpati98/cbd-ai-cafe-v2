@@ -55,7 +55,23 @@ export default function HomePage() {
         ))}
       </div>
 
-      <Link href="/ops" className="text-xs text-latte-400/70 hover:text-latte-200">
+      <Link
+        href="/survey"
+        className="group flex w-full max-w-3xl items-center justify-between gap-4 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 px-6 py-5 text-latte-950 shadow-neon-orange-sm transition-all hover:-translate-y-1 hover:scale-[1.01] hover:shadow-neon-orange"
+      >
+        <span className="flex items-center gap-4">
+          <span className="text-3xl">📝</span>
+          <span>
+            <span className="block font-display text-lg font-black">Khảo sát trải nghiệm</span>
+            <span className="block text-sm font-medium text-latte-950/80">
+              Chỉ vài câu ngắn — chia sẻ cảm nhận của bạn về CBD AI Cafe hôm nay.
+            </span>
+          </span>
+        </span>
+        <span className="shrink-0 text-2xl font-black transition-transform group-hover:translate-x-1">→</span>
+      </Link>
+
+      <Link href="/ops" className="text-xs text-latte-400/70 transition-colors hover:text-latte-200">
         Dành cho nhân viên quán →
       </Link>
     </div>
