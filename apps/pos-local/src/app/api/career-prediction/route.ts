@@ -268,11 +268,11 @@ ${formatHistory(quizHistory)}
 
 CHỈ trả lời bằng JSON hợp lệ, không thêm chữ nào khác, không markdown, không dấu \`\`\`, đúng format sau:
 {
-  "careerName": "Tên nghề nghiệp dự đoán, ngắn gọn sáng tạo, tiếng Việt",
+  "careerName": "Tên nghề nghiệp dự đoán, ngắn gọn sáng tạo, tiếng Việt, TỐI ĐA 28 ký tự (in chữ rất to trên ảnh, dài hơn sẽ tràn) — vd \"Nhiếp ảnh gia thiên nhiên\"",
   "explanation": "2-3 câu giải thích vì sao hợp với vibe/tính cách này, tiếng Việt, văn xuôi thường không markdown",
-  "overview": "Mô tả phổ quát, khách quan về nghề nghiệp này là gì/làm công việc gì (KHÔNG liên quan đến vibe/tính cách của khách), tối đa 100 ký tự, tiếng Việt, 1 câu ngắn gọn",
-  "conditions": "Điều kiện/tố chất chung cần có để theo nghề này (học vấn, kỹ năng, năng khiếu...), tối đa 90 ký tự, tiếng Việt, 1 câu ngắn gọn",
-  "habits": "Thói quen nên rèn luyện hằng ngày để hướng đến nghề này, tối đa 90 ký tự, tiếng Việt, 1 câu ngắn gọn",
+  "overview": "Mô tả phổ quát, khách quan về nghề nghiệp này là gì/làm công việc gì (KHÔNG liên quan đến vibe/tính cách của khách), TỐI ĐA 80 ký tự, tiếng Việt, 1 câu ngắn gọn, không dấu chấm phẩy/gạch ngang nối ý",
+  "conditions": "Điều kiện/tố chất chung cần có để theo nghề này (học vấn, kỹ năng, năng khiếu...), TỐI ĐA 70 ký tự, tiếng Việt, 1 câu ngắn gọn",
+  "habits": "Thói quen nên rèn luyện hằng ngày để hướng đến nghề này, TỐI ĐA 70 ký tự, tiếng Việt, 1 câu ngắn gọn",
   "checkinPrompt": "Mô tả bằng tiếng Anh cho việc CHỈNH SỬA ảnh gốc thành một tấm ảnh check-in. YÊU CẦU: giữ nguyên gương mặt/đầu và có thể nhận ra đúng là người trong ảnh gốc. ĐƯỢC PHÉP thay đổi: trang phục (đổi thành trang phục phù hợp với nghề nghiệp vừa dự đoán), tư thế/dáng đứng-ngồi (phù hợp với nghề đó), và toàn bộ bối cảnh xung quanh. Bối cảnh phải kết hợp: (1) đạo cụ/không gian tượng trưng cho nghề nghiệp vừa dự đoán, và (2) không khí đặc trưng Đà Lạt (thông reo, sương mù nhẹ, ánh nắng vàng ấm buổi sáng, hoa dã quỳ vàng, đồi núi mờ sương, mái ngói đỏ). CHỈ mô tả NỘI DUNG (trang phục, tư thế, đạo cụ, bối cảnh), KHÔNG cần mô tả phong cách vẽ/chất liệu ảnh (phần đó đã được xử lý riêng)."
 }`;
 }
