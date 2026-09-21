@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { ApiError, noContent, ok, parseBody, requireDb, withErrorHandling } from "@/lib/api";
-import { generateTableCode } from "@/lib/table-code";
+import { tableCodeFromLabel } from "@/lib/table-code";
 import { tableUpdateSchema } from "@/lib/schemas";
 import { enqueueTableSync } from "@/lib/sync";
 
@@ -12,31 +12,23 @@ function syncPayload(table: { id: string; code: string; label: string; isActive:
   return { localId: table.id, code: table.code, label: table.label, isActive: table.isActive, updatedAt: table.updatedAt.toISOString() };
 }
 
-// PATCH /api/tables/:id — sửa tên / bật-tắt hoạt động / sinh mã QR mới.
+// PATCH /api/tables/:id — sửa tên / bật-tắt hoạt động. Đổi tên thì link cũng đổi theo
+// (slug bám tên) — QR đã in với tên cũ sẽ không dùng được nữa.
 export const PATCH = withErrorHandling(async (req: NextRequest, { params }: Params) => {
   const { id } = await params;
   const body = await parseBody(req, tableUpdateSchema);
   const db = requireDb();
 
-  const data: Record<string, unknown> = {};
-  if (body.label !== undefined) data.label = body.label;
+  const data: { label?: string; code?: string; isActive?: boolean } = {};
   if (body.isActive !== undefined) data.isActive = body.isActive;
-
-  if (body.regenerateCode) {
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const code = generateTableCode();
-      try {
-        const table = await db.table.update({ where: { id }, data: { ...data, code } });
-        void enqueueTableSync(syncPayload(table)).catch(() => {});
-        return ok(table);
-      } catch (err) {
-        if (typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "P2002") {
-          continue;
-        }
-        throw err;
-      }
+  if (body.label !== undefined) {
+    const code = tableCodeFromLabel(body.label);
+    const clash = await db.table.findUnique({ where: { code }, select: { id: true } });
+    if (clash && clash.id !== id) {
+      throw new ApiError(409, `Đã có bàn dùng link /order/t/${code} — hãy đặt tên khác.`);
     }
-    throw new ApiError(500, "Không sinh được mã mới, thử lại.");
+    data.label = body.label;
+    data.code = code;
   }
 
   const table = await db.table.update({ where: { id }, data });

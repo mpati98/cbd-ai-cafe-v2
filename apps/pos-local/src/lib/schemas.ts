@@ -4,7 +4,7 @@ import { DETAIL_KEYS, EXPERIENCE_KEYS } from "@/lib/survey-config";
 export const orderCreateSchema = z.object({
   customerName: z.string().max(120).trim().optional(),
   customerNote: z.string().max(300).trim().optional(),
-  tableCode: z.string().max(20).trim().optional(),
+  tableCode: z.string().max(60).trim().optional(),
   items: z
     .array(
       z.object({
@@ -32,7 +32,6 @@ export const tableCreateSchema = z.object({
 export const tableUpdateSchema = z.object({
   label: z.string().min(1).max(60).optional(),
   isActive: z.boolean().optional(),
-  regenerateCode: z.boolean().optional(),
 });
 
 export const printPhotoCreateSchema = z.object({
@@ -73,7 +72,7 @@ export const orderChatRequestSchema = z.object({
     .default([]),
   message: z.string().min(1).max(1000),
   tableLabel: z.string().max(80).nullable().optional(),
-  tableCode: z.string().max(40).nullable().optional(),
+  tableCode: z.string().max(60).nullable().optional(),
 });
 
 export const travelQuizRequestSchema = z.object({

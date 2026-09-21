@@ -1,15 +1,30 @@
-import { randomBytes } from "crypto";
+import { ApiError } from "@/lib/api";
 
-// Bỏ ký tự dễ nhầm lẫn (0/O, 1/l/I) — dù mã này chủ yếu quét qua QR, không
-// gõ tay, nhưng lỡ cần đọc/gõ lại (QR hỏng, khách chụp màn hình) vẫn rõ ràng.
-const ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
+/** Trần độ dài slug — khớp giới hạn `tableCode` ở các schema (order/chat). */
+export const TABLE_CODE_MAX = 60;
 
-/** Sinh mã bàn ngẫu nhiên (không đoán được) dùng trong URL QR: /order/t/{code} */
-export function generateTableCode(length = 6): string {
-  const bytes = randomBytes(length);
-  let code = "";
-  for (let i = 0; i < length; i++) {
-    code += ALPHABET[bytes[i] % ALPHABET.length];
-  }
+/**
+ * Biến tên bàn thành mã dùng trong URL QR: /order/t/{code}.
+ * "Bàn 01" → "ban-01", "Sân vườn 2" → "san-vuon-2", "Đặc biệt" → "dac-biet".
+ * Bỏ dấu tiếng Việt (đ/Đ không tách được bằng NFD nên xử lý riêng), chữ thường,
+ * mọi cụm ký tự khác a-z0-9 gộp thành 1 dấu gạch ngang.
+ */
+export function slugifyTableLabel(label: string): string {
+  return label
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, TABLE_CODE_MAX)
+    .replace(/-+$/g, "");
+}
+
+/** Như trên nhưng ném 400 nếu tên không chứa chữ/số nào (vd "!!!") — không tạo được link. */
+export function tableCodeFromLabel(label: string): string {
+  const code = slugifyTableLabel(label);
+  if (!code) throw new ApiError(400, "Tên bàn cần có ít nhất 1 chữ cái hoặc chữ số.");
   return code;
 }

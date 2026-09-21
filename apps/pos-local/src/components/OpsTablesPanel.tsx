@@ -58,16 +58,6 @@ export default function TablesPanel() {
     }
   }
 
-  async function regenerateCode(t: TableRow) {
-    if (!window.confirm(`Tạo mã QR mới cho "${t.label}"? Mã QR cũ (đã in/dán) sẽ KHÔNG dùng được nữa.`)) return;
-    try {
-      await opsApi.update(`/api/tables/${t.id}`, { regenerateCode: true });
-      await load();
-    } catch (err) {
-      window.alert(err instanceof OpsApiError ? err.message : "Không tạo được mã mới.");
-    }
-  }
-
   async function handleRename(e: React.FormEvent) {
     e.preventDefault();
     if (!renaming || !renameValue.trim()) return;
@@ -170,12 +160,6 @@ export default function TablesPanel() {
                 {t.isActive ? "Tạm ngưng" : "Bật lại"}
               </button>
               <button
-                onClick={() => regenerateCode(t)}
-                className="rounded-full border border-latte-700 px-3 py-1 text-[0.68rem] font-semibold text-latte-200 hover:bg-latte-700"
-              >
-                Tạo mã mới
-              </button>
-              <button
                 onClick={() => handleDelete(t)}
                 className="rounded-full px-3 py-1 text-[0.68rem] font-semibold text-latte-400 hover:text-orange-300"
               >
@@ -195,7 +179,10 @@ export default function TablesPanel() {
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-sm rounded-2xl border border-latte-700 bg-latte-900 p-6 shadow-card"
           >
-            <h3 className="mb-4 font-display text-lg font-bold text-latte-100">Đổi tên bàn</h3>
+            <h3 className="mb-2 font-display text-lg font-bold text-latte-100">Đổi tên bàn</h3>
+            <p className="mb-4 text-xs text-orange-300/90">
+              Link đặt món bám theo tên bàn — đổi tên thì <b>QR đã dán phải in lại</b>.
+            </p>
             <input
               type="text"
               autoFocus

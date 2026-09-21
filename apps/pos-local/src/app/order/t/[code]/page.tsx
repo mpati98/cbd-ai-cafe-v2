@@ -22,5 +22,5 @@ export default async function OrderByTablePage({ params }: { params: Promise<{ c
   const [items, table] = await Promise.all([getMenuItems(), getTableByCode(code)]);
   const sorted = [...items].sort((a, b) => a.order - b.order);
 
-  return <OrderExperience items={sorted} table={table ? { code, label: table.label } : null} />;
+  return <OrderExperience items={sorted} table={table ? { code: table.code, label: table.label } : null} />;
 }

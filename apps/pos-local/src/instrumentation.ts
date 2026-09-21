@@ -20,6 +20,12 @@ export async function register() {
   // fallback tĩnh cho tới khi có mạng — xem lib/menu-cache.ts).
   void pullConfig();
 
+  // Đưa mã bàn kiểu cũ (ngẫu nhiên) về slug theo tên — xem lib/table-lookup.ts.
+  const { migrateTableCodesToSlugs } = await import("@/lib/table-lookup");
+  void migrateTableCodesToSlugs().catch((err) =>
+    console.warn("[tables] Không chuyển được mã bàn sang slug:", err instanceof Error ? err.message : err)
+  );
+
   setInterval(() => void pullConfig(), CONFIG_PULL_INTERVAL_MS);
   setInterval(() => void drainOutbox(), OUTBOX_DRAIN_INTERVAL_MS);
   setInterval(() => void pingHealth(), HEALTH_PING_INTERVAL_MS);
