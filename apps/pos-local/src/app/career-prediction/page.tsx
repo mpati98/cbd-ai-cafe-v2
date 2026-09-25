@@ -12,6 +12,9 @@ interface Result {
   vibe: string;
   careerName: string;
   explanation: string;
+  overview: string;
+  conditions: string;
+  habits: string;
   imageUrl: string;
 }
 
@@ -178,6 +181,22 @@ export default function CareerPredictionPageExample() {
             {result?.explanation}
           </p>
         </div>
+
+        {/* Bản đầy đủ của ô ghi chú trên ảnh (trên ảnh chỉ in bản rút gọn) */}
+        {[
+          { title: "Nghề này làm gì", text: result?.overview },
+          { title: "Điều kiện cần", text: result?.conditions },
+          { title: "Thói quen nên rèn luyện", text: result?.habits },
+        ]
+          .filter((item) => item.text)
+          .map((item) => (
+            <div key={item.title}>
+              <h3 className="text-amber-300 font-semibold mb-1 text-sm uppercase tracking-wide">
+                {item.title}
+              </h3>
+              <p className="text-white/80 text-sm leading-relaxed">{item.text}</p>
+            </div>
+          ))}
 
         <button
           onClick={() => {

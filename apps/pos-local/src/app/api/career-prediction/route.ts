@@ -19,12 +19,16 @@ interface RequestBody {
 interface CareerPrediction {
   careerName: string;
   explanation: string;
-  /** Ghi chú phổ quát ngắn về nghề nghiệp - hiển thị trong ô ghi chú trên ảnh in */
+  /** Mô tả đầy đủ về nghề - hiển thị dưới ảnh trên trang kết quả */
   overview: string;
-  /** Điều kiện/tố chất cần có để theo nghề - hiển thị trong ô ghi chú trên ảnh in */
+  /** Điều kiện/tố chất cần có để theo nghề (đầy đủ) - hiển thị dưới ảnh */
   conditions: string;
-  /** Thói quen nên rèn luyện để hướng đến nghề - hiển thị trong ô ghi chú trên ảnh in */
+  /** Thói quen nên rèn luyện để hướng đến nghề (đầy đủ) - hiển thị dưới ảnh */
   habits: string;
+  /** Bản rút gọn 1 dòng của overview/conditions/habits - in trong ô ghi chú trên ảnh */
+  overviewShort?: string;
+  conditionsShort?: string;
+  habitsShort?: string;
   /** Mô tả cảnh chỉnh sửa ảnh: giữ người trong ảnh gốc + thêm bối cảnh nghề nghiệp + vibe Đà Lạt */
   checkinPrompt: string;
 }
@@ -54,6 +58,9 @@ interface CareerPredictionResult {
   vibe: string;
   careerName: string;
   explanation: string;
+  overview: string;
+  conditions: string;
+  habits: string;
   imageUrl: string;
 }
 
@@ -101,7 +108,7 @@ async function runCareerPrediction(
   console.log("[career-prediction] bước 2: gọi Claude career prediction...");
   const predictionResponse = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 700,
+    max_tokens: 1000,
     messages: [
       { role: "user", content: buildCareerPredictionPrompt(vibeText, quizHistory) },
     ],
@@ -147,9 +154,9 @@ async function runCareerPrediction(
     { mediaType: generatedImage.mediaType, base64: generatedImage.base64 },
     {
       careerName: prediction.careerName,
-      overview: prediction.overview,
-      conditions: prediction.conditions,
-      habits: prediction.habits,
+      overview: prediction.overviewShort || prediction.overview,
+      conditions: prediction.conditionsShort || prediction.conditions,
+      habits: prediction.habitsShort || prediction.habits,
     }
   );
   const imageUrl = `data:${printedPhoto.mimeType};base64,${printedPhoto.base64}`;
@@ -159,6 +166,9 @@ async function runCareerPrediction(
     vibe: vibeText,
     careerName: prediction.careerName,
     explanation: prediction.explanation,
+    overview: prediction.overview,
+    conditions: prediction.conditions,
+    habits: prediction.habits,
     imageUrl,
   };
 }
@@ -270,9 +280,12 @@ CHỈ trả lời bằng JSON hợp lệ, không thêm chữ nào khác, không 
 {
   "careerName": "Tên nghề nghiệp dự đoán, ngắn gọn sáng tạo, tiếng Việt, TỐI ĐA 28 ký tự (in chữ rất to trên ảnh, dài hơn sẽ tràn) — vd \"Nhiếp ảnh gia thiên nhiên\"",
   "explanation": "2-3 câu giải thích vì sao hợp với vibe/tính cách này, tiếng Việt, văn xuôi thường không markdown",
-  "overview": "Mô tả phổ quát, khách quan về nghề nghiệp này là gì/làm công việc gì (KHÔNG liên quan đến vibe/tính cách của khách), TỐI ĐA 80 ký tự, tiếng Việt, 1 câu ngắn gọn, không dấu chấm phẩy/gạch ngang nối ý",
-  "conditions": "Điều kiện/tố chất chung cần có để theo nghề này (học vấn, kỹ năng, năng khiếu...), TỐI ĐA 70 ký tự, tiếng Việt, 1 câu ngắn gọn",
-  "habits": "Thói quen nên rèn luyện hằng ngày để hướng đến nghề này, TỐI ĐA 70 ký tự, tiếng Việt, 1 câu ngắn gọn",
+  "overview": "Mô tả phổ quát, khách quan về nghề nghiệp này là gì/làm công việc gì (KHÔNG liên quan đến vibe/tính cách của khách), 1-2 câu, tiếng Việt (hiển thị đầy đủ trên màn hình)",
+  "overviewShort": "Bản rút gọn của overview để in trên ảnh, TỐI ĐA 40 ký tự, súc tích như 1 cụm từ, không dấu chấm cuối — vd \"Dẫn dắt những chuyến đi đáng nhớ\"",
+  "conditions": "Điều kiện/tố chất chung cần có để theo nghề này (học vấn, kỹ năng, năng khiếu...), 1-2 câu, tiếng Việt",
+  "conditionsShort": "Bản rút gọn của conditions để in trên ảnh, TỐI ĐA 40 ký tự, 2-3 ý ngắn cách nhau dấu phẩy — vd \"Giao tiếp tốt, am hiểu địa phương\"",
+  "habits": "Thói quen nên rèn luyện hằng ngày để hướng đến nghề này, 1-2 câu, tiếng Việt",
+  "habitsShort": "Bản rút gọn của habits để in trên ảnh, TỐI ĐA 40 ký tự, súc tích — vd \"Mỗi ngày học 1 điều về Đà Lạt\"",
   "checkinPrompt": "Mô tả bằng tiếng Anh cho việc CHỈNH SỬA ảnh gốc thành một tấm ảnh check-in. YÊU CẦU: giữ nguyên gương mặt/đầu và có thể nhận ra đúng là người trong ảnh gốc. ĐƯỢC PHÉP thay đổi: trang phục (đổi thành trang phục phù hợp với nghề nghiệp vừa dự đoán), tư thế/dáng đứng-ngồi (phù hợp với nghề đó), và toàn bộ bối cảnh xung quanh. Bối cảnh phải kết hợp: (1) đạo cụ/không gian tượng trưng cho nghề nghiệp vừa dự đoán, và (2) không khí đặc trưng Đà Lạt (thông reo, sương mù nhẹ, ánh nắng vàng ấm buổi sáng, hoa dã quỳ vàng, đồi núi mờ sương, mái ngói đỏ). CHỈ mô tả NỘI DUNG (trang phục, tư thế, đạo cụ, bối cảnh), KHÔNG cần mô tả phong cách vẽ/chất liệu ảnh (phần đó đã được xử lý riêng)."
 }`;
 }
