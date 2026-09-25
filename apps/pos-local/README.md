@@ -87,6 +87,12 @@ Chỉ rebuild lại `pos-local` (`cloudflared` dùng image có sẵn, không c�
 rebuild; nếu đổi cấu hình tunnel trên dashboard chỉ cần
 `docker compose up -d cloudflared`, không cần `--build`).
 
+Bản trên là tóm tắt cho người đã quen thao tác. Quy trình đầy đủ để nâng cấp
+máy **thật tại quán** (sao lưu trước, đồng bộ lại `prisma db push`, kiểm tra
+sau nâng cấp, cách rollback nếu lỗi — trên Windows 11) xem
+[`runbook-upgrade-phien-ban-moi-win11.md`](../../runbook-upgrade-phien-ban-moi-win11.md)
+ở repo root.
+
 ## Xem log
 
 ```bash

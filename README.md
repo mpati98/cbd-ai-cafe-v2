@@ -53,6 +53,15 @@ npm run db:seed    # nạp dữ liệu mẫu + tự tạo tài khoản ADMIN đ�
 npm run dev
 ```
 
+Chạy cả 3 app qua Turborepo, mỗi app có port cố định (khai trong
+`apps/*/package.json`, script `dev`) để tránh Next tự chọn port theo thứ tự
+khởi động (không ổn định giữa các lần chạy — từng gây lỗi pos-local đồng bộ
+nhầm lên chính nó vì `DASHBOARD_URL` trỏ đúng port nhưng port đó lại đổi chủ):
+
+- `apps/pos-local` → http://localhost:3000
+- `apps/dashboard` → http://localhost:3001
+- `apps/landing` → http://localhost:3002
+
 Mở http://localhost:3000
 
 ## Cấu trúc chính
